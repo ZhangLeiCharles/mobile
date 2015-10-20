@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Chandler
+namespace Toggl.Chandler
 {
     public class SimpleTimeEntryData
     {
