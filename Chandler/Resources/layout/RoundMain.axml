@@ -4,18 +4,24 @@
     android:orientation="vertical"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:background="@android:color/black"
+    android:background="@drawable/bgarrows"
     tools:context=".MainActivity"
     tools:deviceIds="wear_round">
     <TextView
         android:layout_height="wrap_content"
         android:layout_width="match_parent"
         android:id="@+id/DurationTextView"
-        android:textSize="20sp"
+        android:textColor="@android:color/black"
+        android:textSize="30sp"
+        android:gravity="center_horizontal"
+        android:layout_marginTop="20dp"
         android:text="1 minute" />
-    <Button
-        android:id="@+id/myButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/hello_round" />
+    <ImageButton
+        android:background="@drawable/roundedbutton"
+        android:id="@+id/testButton"
+        android:layout_gravity="center_horizontal"
+        android:layout_width="@dimen/roundButtonSize"
+        android:layout_height="@dimen/roundButtonSize"
+        android:layout_marginTop="30dp"
+        android:src="@drawable/icplay" />
 </LinearLayout>

@@ -12,7 +12,7 @@ namespace Toggl.Chandler
     public class MainActivity : Activity, IDataApiDataListener
     {
         private WatchViewStub watchViewStub;
-        private Button testButton;
+        private ImageButton testButton;
         private int count;
 
         protected override void OnCreate (Bundle bundle)
@@ -23,13 +23,13 @@ namespace Toggl.Chandler
             SetContentView (Resource.Layout.Main);
 
             watchViewStub = FindViewById<WatchViewStub> (Resource.Id.watch_view_stub);
-            testButton = FindViewById<Button> (Resource.Id.myButton);
 
             watchViewStub.LayoutInflated += ViewStubInflated;
         }
 
         private void ViewStubInflated (object sender, WatchViewStub.LayoutInflatedEventArgs e)
         {
+            testButton = FindViewById<ImageButton> (Resource.Id.testButton);
             testButton.Click += OnButtonClicked;
         }
 
@@ -43,7 +43,6 @@ namespace Toggl.Chandler
 
             var manager = NotificationManagerCompat.From (this);
             manager.Notify (1, notification);
-            testButton.Text = "Check Notification!";
         }
 
         public void OnDataChanged (DataEventBuffer dataEvents)
