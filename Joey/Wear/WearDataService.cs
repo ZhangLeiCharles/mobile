@@ -117,7 +117,7 @@ namespace Toggl.Joey.Wear
                 var obj = new DataMap ();
                 using (var listStream = new System.IO.MemoryStream ()) {
                     serializer.Serialize (listStream, entry);
-                    obj.PutByteArray ("single_obj", listStream.ToArray ());
+                    obj.PutByteArray (Common.SingleEntryKey, listStream.ToArray ());
                 }
                 children.Add (obj);
             }
