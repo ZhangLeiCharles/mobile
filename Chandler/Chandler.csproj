@@ -64,6 +64,8 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="MainActivity.cs" />
     <Compile Include="SimpleTimeEntryData.cs" />
+    <Compile Include="TimeEntriesPagerAdapter.cs" />
+    <Compile Include="TimeEntryFragment.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\AboutResources.txt" />
@@ -95,6 +97,7 @@
     <AndroidResource Include="Resources\drawable-xxhdpi\IcStop.png" />
     <AndroidResource Include="Resources\drawable\roundedbutton.xml" />
     <AndroidResource Include="Resources\values\Dimensions.xml" />
+    <AndroidResource Include="Resources\layout\TimeEntryFragment.axml" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Novell\Novell.MonoDroid.CSharp.targets" />
   <ItemGroup>

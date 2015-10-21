@@ -44,12 +44,12 @@ namespace Toggl.Joey.Wear
         {
             LOGD (Tag, "OnMessageReceived: " + messageEvent);
 
-            // Check to see if the message is to start an activity
-            if (messageEvent.Path.Equals (DataStorePath)) {
-                Intent startIntent = new Intent (this, typeof (MainActivity));
-                startIntent.AddFlags (ActivityFlags.NewTask);
-                StartActivity (startIntent);
-            }
+//            // Check to see if the message is to start an activity
+//            if (messageEvent.Path.Equals (DataStorePath)) {
+//                Intent startIntent = new Intent (this, typeof (MainActivity));
+//                startIntent.AddFlags (ActivityFlags.NewTask);
+//                StartActivity (startIntent);
+//            }
         }
 
         public override void OnPeerConnected (INode peer)
