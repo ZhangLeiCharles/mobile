@@ -80,22 +80,18 @@ namespace Toggl.Joey.Wear
                 var path = message.Path;
 
                 try {
-                    if (path == Common.StartTimeEntryPath) {
-                        // Start new time entry.
+                    if (path == Common.StartTimeEntryPath || path == Common.StopTimeEntryPath) {
 
+                        // Start new time entry.
+                        await WearDataProvider.StartStopTimeEntry ();
                         // Refresh shared data.
                         await UpdateSharedTimeEntryList (client);
-
-                    } else if (path == Common.StopTimeEntryPath) {
-
 
                     } else if (path == Common.RestartTimeEntryPath) {
                         // Get time entry Id needed.
                     }
                 } finally {
-                    await UpdateSharedTimeEntryList (client);
                     client.Disconnect ();
-
                 }
             } catch (Exception e) {
                 Log.Error ("WearIntegration", e.ToString ());
@@ -108,18 +104,21 @@ namespace Toggl.Joey.Wear
 
         private async Task UpdateSharedTimeEntryList (IGoogleApiClient client)
         {
-            // Get last 4 grouped TEs
-
-            // Create SimpleTimeEntryData
-            var timeEntryData = new List<SimpleTimeEntryData> ();
+            var entryData = await WearDataProvider.GetTimeEntryData ();
 
             // Publis changes to weareable using DataItems
             var mapReq = PutDataMapRequest.Create (Common.TimeEntryListPath);
             var map = mapReq.DataMap;
 
             var children = new List<DataMap> (5);
-            foreach (var entry in timeEntryData ) {
+            var serializer = new System.Xml.Serialization.XmlSerializer (typeof (SimpleTimeEntryData));
+
+            foreach (var entry in entryData ) {
                 var obj = new DataMap ();
+                using (var listStream = new System.IO.MemoryStream ()) {
+                    serializer.Serialize (listStream, entry);
+                    obj.PutByteArray ("single_obj", listStream.ToArray ());
+                }
                 children.Add (obj);
             }
             map.PutDataMapArrayList (Common.TimeEntryListKey, children.ToList ());

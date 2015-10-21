@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Toggl.Phoebe;
 using Toggl.Phoebe.Analytics;
 using Toggl.Phoebe.Data;
+using Toggl.Phoebe.Data.DataObjects;
 using Toggl.Phoebe.Data.Models;
 using XPlatUtils;
-using Toggl.Phoebe.Data.DataObjects;
-using Toggl.Phoebe;
-using System.Linq;
 
 namespace Toggl.Joey.Wear
 {
@@ -37,10 +37,10 @@ namespace Toggl.Joey.Wear
             ServiceContainer.Resolve<ITracker> ().SendTimerStartEvent (TimerStartSource.WatchContinue);
         }
 
-        public static async Task<List<SimpleTimeEntryData>> ContinueTimeEntry (Guid timeEntryId)
+        public static async Task<List<SimpleTimeEntryData>> GetTimeEntryData ()
         {
             var itemCount = 5;
-            //var items = new List<SimpleTimeEntryData> (itemCount);
+            var items = new List<SimpleTimeEntryData> (itemCount);
 
             var dataStore = ServiceContainer.Resolve<IDataStore> ();
             var endTime = Time.UtcNow;
@@ -69,10 +69,18 @@ namespace Toggl.Joey.Wear
             } into newGroup
             select newGroup;
 
+            for (int i = 0; i < itemCount; i++) {
+                var item = new SimpleTimeEntryData {
+                    Project = "Project " + i,
+                    Description = "Description " + i,
+                    IsRunning = false,
+                    StartTime = Time.UtcNow.AddHours (-1),
+                    StopTime = Time.UtcNow
+                };
+                items.Add (item);
+            }
 
-
-            Console.WriteLine (groupedList);
-            return null;
+            return items;
         }
 
         public static bool IsGroupableWith (TimeEntryData data, TimeEntryData other)
@@ -83,8 +91,6 @@ namespace Toggl.Joey.Wear
                    data.UserId == other.UserId &&
                    data.WorkspaceId == other.WorkspaceId;
         }
-
-
     }
 }
 
