@@ -176,7 +176,9 @@
     <Compile Include="UI\Fragments\CreateClientDialogFragment.cs" />
     <Compile Include="UI\Fragments\ClientListFragment.cs" />
     <Compile Include="UI\Adapters\ClientsAdapter.cs" />
-    <Compile Include="Wear\WearService.cs" />
+    <Compile Include="Wear\WearDataService.cs" />
+    <Compile Include="Wear\Common.cs" />
+    <Compile Include="Wear\WearDataProvider.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\AboutResources.txt" />

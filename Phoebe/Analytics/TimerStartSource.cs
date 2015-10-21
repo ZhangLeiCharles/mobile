@@ -8,6 +8,8 @@ namespace Toggl.Phoebe.Analytics
         AppManual,
         WidgetStart,
         WidgetNew,
-        WidgetContinue
+        WidgetContinue,
+        WatchStart,
+        WatchContinue
     }
 }
