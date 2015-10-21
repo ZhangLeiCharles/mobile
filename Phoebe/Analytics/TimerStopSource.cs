@@ -6,5 +6,6 @@ namespace Toggl.Phoebe.Analytics
         App,
         Notification,
         Widget,
+        Watch
     }
 }
