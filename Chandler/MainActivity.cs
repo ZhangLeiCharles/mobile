@@ -13,6 +13,8 @@ namespace Toggl.Chandler
     {
         private WatchViewStub watchViewStub;
         private ImageButton testButton;
+        private GridViewPager pager;
+        private DotsPageIndicator dots;
         private int count;
 
         protected override void OnCreate (Bundle bundle)
@@ -29,11 +31,15 @@ namespace Toggl.Chandler
 
         private void ViewStubInflated (object sender, WatchViewStub.LayoutInflatedEventArgs e)
         {
+            pager = FindViewById<GridViewPager> (Resource.Id.pager);
+            dots = FindViewById<DotsPageIndicator> (Resource.Id.indicator);
+            pager.Adapter = new TimeEntriesPagerAdapter (this, FragmentManager);
+            dots.SetPager (pager);
             testButton = FindViewById<ImageButton> (Resource.Id.testButton);
             testButton.Click += OnButtonClicked;
         }
 
-        private void OnButtonClicked (object sender, System.EventArgs e)
+        private void OnButtonClicked (object sender, EventArgs e)
         {
             var notification = new NotificationCompat.Builder (this)
             .SetContentTitle ("Button tapped")
