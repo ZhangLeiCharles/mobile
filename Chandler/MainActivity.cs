@@ -11,7 +11,6 @@ namespace Toggl.Chandler
     [Activity (Label = "Toggl", MainLauncher = true, Icon = "@drawable/Icon" )]
     public class MainActivity : Activity, IDataApiDataListener
     {
-        private WatchViewStub watchViewStub;
         private ImageButton testButton;
         private GridViewPager pager;
         private DotsPageIndicator dots;
@@ -24,13 +23,6 @@ namespace Toggl.Chandler
 
             SetContentView (Resource.Layout.Main);
 
-            watchViewStub = FindViewById<WatchViewStub> (Resource.Id.watch_view_stub);
-
-            watchViewStub.LayoutInflated += ViewStubInflated;
-        }
-
-        private void ViewStubInflated (object sender, WatchViewStub.LayoutInflatedEventArgs e)
-        {
             pager = FindViewById<GridViewPager> (Resource.Id.pager);
             dots = FindViewById<DotsPageIndicator> (Resource.Id.indicator);
             pager.Adapter = new TimeEntriesPagerAdapter (this, FragmentManager);
