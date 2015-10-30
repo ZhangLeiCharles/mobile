@@ -8,7 +8,6 @@ using Android.Text.Style;
 using Android.Util;
 using Android.Views;
 using Android.Widget;
-using Toggl.Phoebe.Data.Views;
 
 namespace Toggl.Joey.UI.Views
 {
@@ -16,7 +15,7 @@ namespace Toggl.Joey.UI.Views
     {
         const int TagMaxLength = 30;
 
-        public event EventHandler FullClick;
+        private List<string> tagNames;
 
         public TogglTagsField (Context context) : base (context)
         {
@@ -28,27 +27,31 @@ namespace Toggl.Joey.UI.Views
             Initialize ();
         }
 
+        public event EventHandler OnPressTagField;
+
         public EditText EditText { get; private set; }
 
         public TextView TextView { get; private set; }
 
-        protected virtual void OnClick (object obj, EventArgs args)
+        public List<string> TagNames
         {
-            EventHandler handler = FullClick;
-            if (handler != null) {
-                handler (this, args);
+            get {
+                return tagNames;
+            } set {
+                tagNames = value;
+                DrawTags ();
             }
         }
 
-        void Initialize()
+        private void Initialize()
         {
-            LayoutInflater inflater = (LayoutInflater)Context.GetSystemService (Context.LayoutInflaterService);
+            var inflater = (LayoutInflater)Context.GetSystemService (Context.LayoutInflaterService);
             inflater.Inflate (Resource.Layout.TogglTagsField, this);
 
             EditText = FindViewById<EditText> (Resource.Id.TogglTagsFieldEditText);
-            TextView = (TextView)FindViewById<TextView> (Resource.Id.TogglTagsFieldTitle);
+            TextView = FindViewById<TextView> (Resource.Id.TogglTagsFieldTitle);
 
-            EditText.Touch += (object sender, View.TouchEventArgs e) => {
+            EditText.Touch += (sender, e) => {
                 e.Handled = false;
                 TextView.Pressed = e.Event.Action != MotionEventActions.Up;
             };
@@ -57,36 +60,40 @@ namespace Toggl.Joey.UI.Views
             EditText.Click += OnClick;
         }
 
-
-        public virtual void RebindTags (TimeEntryTagsView tagsView)
+        private void OnClick (object obj, EventArgs args)
         {
-            List<String> tagList = new List<String> ();
-            String t;
-
-            if (tagsView == null || tagsView.IsLoading) {
-                return;
+            EventHandler handler = OnPressTagField;
+            if (handler != null) {
+                handler (this, args);
             }
+        }
 
-            if (tagsView.Count == 0) {
+        private void DrawTags ()
+        {
+            String tagName;
+            var tagNameList = new List<String> ();
+
+            if (tagNames.Count == 0) {
                 EditText.Text = String.Empty;
                 return;
             }
 
-            foreach (String tagText in tagsView.Data) {
-                t = tagText.Length > TagMaxLength ? tagText.Substring (0, TagMaxLength - 1).Trim () + "…" : tagText;
+            foreach (var tagText in tagNames) {
+                tagName = tagText.Length > TagMaxLength ? tagText.Substring (0, TagMaxLength - 1).Trim () + "…" : tagText;
                 if (tagText.Length > 0) {
-                    tagList.Add (t);
+                    tagNameList.Add (tagName);
                 }
             }
             // The extra whitespace prevents the ImageSpans and the text they are over
             // to break at different positions, leaving zero linespacing on edge cases.
-            var tags = new SpannableStringBuilder (String.Join (" ", tagList) + " ");
+            var tags = new SpannableStringBuilder (String.Join (" ", tagNameList) + " ");
 
             int x = 0;
-            foreach (String tagText in tagList) {
+            foreach (String tagText in tagNameList) {
                 tags.SetSpan (new ImageSpan (MakeTagChip (tagText)), x, x + tagText.Length, SpanTypes.ExclusiveExclusive);
                 x = x + tagText.Length + 1;
             }
+
             EditText.SetText (tags, EditText.BufferType.Spannable);
         }
 
