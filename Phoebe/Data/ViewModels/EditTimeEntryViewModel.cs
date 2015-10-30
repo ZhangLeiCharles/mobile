@@ -1,71 +1,59 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Threading.Tasks;
 using Toggl.Phoebe.Analytics;
-using Toggl.Phoebe.Data.DataObjects;
 using Toggl.Phoebe.Data.Models;
-using Toggl.Phoebe.Data.Utils;
 using Toggl.Phoebe.Data.ViewModels;
 using XPlatUtils;
 
 namespace Toggl.Phoebe.Data.ViewModels
 {
-    public class EditTimeEntryViewModel : IViewModel<TimeEntryGroup>
+    public class EditTimeEntryView : IViewModel<TimeEntryModel>
     {
+        private ActiveTimeEntryManager timeEntryManager;
+        private TimeEntryModel model;
         private bool isLoading;
-        private TimeEntryGroup model;
-        private IList<TimeEntryData> timeEntryList;
-        private IList<string> timeEntryIds;
+        private Guid timeEntryId;
 
-        public EditTimeEntryViewModel (IList<TimeEntryData> timeEntryList)
+        public EditTimeEntryView (Guid timeEntryId)
         {
-            this.timeEntryList = timeEntryList;
-            ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Edit Grouped Time Entry";
-        }
-
-        public EditTimeEntryViewModel (IList<string> timeEntryIds)
-        {
-            this.timeEntryIds = timeEntryIds;
-            ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Edit Grouped Time Entry";
-        }
-
-        public async Task Init ()
-        {
-            IsLoading = true;
-
-            if (timeEntryList == null) {
-                timeEntryList = await TimeEntryGroup.GetTimeEntryDataList (timeEntryIds);
-            }
-
-            model = new TimeEntryGroup (timeEntryList);
-            await model.LoadAsync ();
-            model.PropertyChanged += OnPropertyChange;
-
-            // Ensure that the model exists
-            if (model.Workspace == null || model.Workspace.Id == Guid.Empty) {
-                model = null;
-            }
-
-            IsLoading = false;
+            this.timeEntryId = timeEntryId;
+            ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Edit Time Entry";
         }
 
         public void Dispose ()
         {
-            model.PropertyChanged -= OnPropertyChange;
-            model = null;
+            if (model != null) {
+                model.PropertyChanged -= OnPropertyChange;
+                model = null;
+            }
         }
 
-        public Task SaveAsync ()
+        private bool isDraft;
+
+        public bool IsDraft
         {
-            return model.SaveAsync ();
+            get {
+                return isDraft;
+            }
         }
 
-        public TimeEntryGroup Model
+        public event EventHandler OnModelChanged;
+
+        public TimeEntryModel Model
         {
             get {
                 return model;
             }
+
+            private set {
+
+                model = value;
+
+                if (OnModelChanged != null) {
+                    OnModelChanged (this, EventArgs.Empty);
+                }
+            }
+
         }
 
         public event EventHandler OnIsLoadingChanged;
@@ -89,14 +77,57 @@ namespace Toggl.Phoebe.Data.ViewModels
             }
         }
 
-        public event EventHandler OnProjectListChanged;
-
-        private void OnPropertyChange (object sender, PropertyChangedEventArgs e)
+        public void Init (bool isDraft)
         {
-            if (e.PropertyName == TimeEntryModel.PropertyProject) {
-                if (OnProjectListChanged != null) {
-                    OnProjectListChanged.Invoke (sender, e);
+            IsLoading  = true;
+
+            this.isDraft = isDraft;
+
+            if (!isDraft) {
+                if (timeEntryId != Guid.Empty) {
+                    Model = new TimeEntryModel (timeEntryId);
+                } else {
+                    ResetModel ();
                 }
+            } else {
+                ResetModel ();
+            }
+
+            IsLoading = false;
+        }
+
+        public void ResetModel ()
+        {
+            isDraft = true;
+
+            if (timeEntryManager == null) {
+                timeEntryManager = ServiceContainer.Resolve<ActiveTimeEntryManager> ();
+                timeEntryManager.PropertyChanged += OnTimeEntryManagerPropertyChanged;
+            }
+
+            if (timeEntryManager.Draft == null) {
+                Model = null;
+            } else {
+                Model = new TimeEntryModel (timeEntryManager.Draft);
+            }
+        }
+
+        private void OnTimeEntryManagerPropertyChanged (object sender, PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName == ActiveTimeEntryManager.PropertyDraft) {
+                ResetModel ();
+            }
+        }
+
+        private void OnPropertyChange (object sender, EventArgs e)
+        {
+            if (Model.Id == Guid.Empty) {
+                Dispose ();
+            }
+
+            if (timeEntryManager != null) {
+                timeEntryManager.PropertyChanged -= OnTimeEntryManagerPropertyChanged;
+                timeEntryManager = null;
             }
 
         }

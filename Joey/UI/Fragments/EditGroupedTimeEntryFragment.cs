@@ -21,7 +21,7 @@ namespace Toggl.Joey.UI.Fragments
     {
         private static readonly string TimeEntriesIdsArgument = "com.toggl.timer.time_entries_ids";
 
-        private EditTimeEntryViewModel viewModel;
+        private EditGroupViewModel viewModel;
         private RecyclerView recyclerView;
         private SimpleEditTimeEntryFragment editTimeEntryFragment;
         private RecyclerView.Adapter listAdapter;
@@ -69,7 +69,7 @@ namespace Toggl.Joey.UI.Fragments
         {
             base.OnViewCreated (view, savedInstanceState);
 
-            viewModel = new EditTimeEntryViewModel (TimeEntryIds);
+            viewModel = new EditGroupViewModel (TimeEntryIds);
             viewModel.OnIsLoadingChanged += OnModelLoaded;
             await viewModel.Init ();
         }
