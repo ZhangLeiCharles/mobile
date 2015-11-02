@@ -10,6 +10,15 @@ namespace Toggl.Joey.UI.Views
     {
         public EditText TextField { get; private set; }
 
+        public string AssistViewTitle
+        {
+            get {
+                return assistView.Text;
+            } set {
+                SetAssistViewTitle (value);
+            }
+        }
+
         private TextView titleText;
         private TextView assistView;
         private ImageView arrow;
@@ -64,8 +73,8 @@ namespace Toggl.Joey.UI.Views
 
         public TogglField SetAssistViewTitle (string title)
         {
+            assistView.Visibility = !string.IsNullOrEmpty (title) ? ViewStates.Visible : ViewStates.Gone;
             assistView.Text = title;
-            assistView.Visibility = ViewStates.Visible;
             ClipText();
             return this;
         }
