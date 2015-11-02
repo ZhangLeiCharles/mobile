@@ -1,135 +1,123 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
+using System.Threading.Tasks;
+using PropertyChanged;
 using Toggl.Phoebe.Analytics;
 using Toggl.Phoebe.Data.Models;
 using Toggl.Phoebe.Data.ViewModels;
+using Toggl.Phoebe.Data.Views;
 using XPlatUtils;
 
 namespace Toggl.Phoebe.Data.ViewModels
 {
-    public class EditTimeEntryView : IViewModel<TimeEntryModel>
+    [ImplementPropertyChanged]
+    public class EditTimeEntryViewModel : IVModel<TimeEntryModel>
     {
-        private ActiveTimeEntryManager timeEntryManager;
+        private TagCollectionView tagsView;
         private TimeEntryModel model;
-        private bool isLoading;
         private Guid timeEntryId;
 
-        public EditTimeEntryView (Guid timeEntryId)
+        public EditTimeEntryViewModel (Guid timeEntryId)
         {
             this.timeEntryId = timeEntryId;
             ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Edit Time Entry";
         }
 
-        public void Dispose ()
-        {
-            if (model != null) {
-                model.PropertyChanged -= OnPropertyChange;
-                model = null;
-            }
-        }
-
-        private bool isDraft;
-
-        public bool IsDraft
-        {
-            get {
-                return isDraft;
-            }
-        }
-
-        public event EventHandler OnModelChanged;
-
-        public TimeEntryModel Model
-        {
-            get {
-                return model;
-            }
-
-            private set {
-
-                model = value;
-
-                if (OnModelChanged != null) {
-                    OnModelChanged (this, EventArgs.Empty);
-                }
-            }
-
-        }
-
-        public event EventHandler OnIsLoadingChanged;
-
-        public bool IsLoading
-        {
-            get {
-                return isLoading;
-            }
-            private set {
-
-                if (isLoading  == value) {
-                    return;
-                }
-
-                isLoading = value;
-
-                if (OnIsLoadingChanged != null) {
-                    OnIsLoadingChanged (this, EventArgs.Empty);
-                }
-            }
-        }
-
-        public void Init (bool isDraft)
+        public async Task Init ()
         {
             IsLoading  = true;
 
-            this.isDraft = isDraft;
+            tagsView = new TagCollectionView (timeEntryId);
+            await tagsView.ReloadAsync ();
 
-            if (!isDraft) {
-                if (timeEntryId != Guid.Empty) {
-                    Model = new TimeEntryModel (timeEntryId);
-                } else {
-                    ResetModel ();
-                }
-            } else {
-                ResetModel ();
-            }
+            model = new TimeEntryModel (timeEntryId);
+            model.PropertyChanged += OnPropertyChange;
+            await model.LoadAsync ();
+
+            SyncModel ();
 
             IsLoading = false;
         }
 
-        public void ResetModel ()
+        public void Dispose ()
         {
-            isDraft = true;
+            model.PropertyChanged -= OnPropertyChange;
+            model = null;
+        }
 
-            if (timeEntryManager == null) {
-                timeEntryManager = ServiceContainer.Resolve<ActiveTimeEntryManager> ();
-                timeEntryManager.PropertyChanged += OnTimeEntryManagerPropertyChanged;
-            }
+        #region viewModel State properties
 
-            if (timeEntryManager.Draft == null) {
-                Model = null;
-            } else {
-                Model = new TimeEntryModel (timeEntryManager.Draft);
+        public bool IsLoading { get; set; }
+
+        public bool IsPremium { get; set; }
+
+        public string Duration { get; set; }
+
+        public DateTime StartDate { get; set; }
+
+        public DateTime StopDate { get; set; }
+
+        public string ProjectName { get; set; }
+
+        public string ClientName { get; set; }
+
+        public string Description { get; set; }
+
+        public List<string> TagNames { get; set; }
+
+        public bool IsBillable { get; set; }
+
+        #endregion
+
+        public void ChangeTimeEntryDuration (TimeSpan newDuration)
+        {
+            model.SetDuration (newDuration);
+            ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Change Duration";
+        }
+
+        public void ChangeTimeEntryStart (DateTime newStartTime)
+        {
+            model.StartTime = newStartTime;
+            ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Change Start Time";
+        }
+
+        public void ChangeTimeEntryStop (DateTime newStopTime)
+        {
+            model.StopTime = newStopTime;
+            ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Change Stop Time";
+        }
+
+        public async Task SaveModel ()
+        {
+            model.IsBillable = IsBillable;
+            model.Description = Description;
+            await model.SaveAsync ();
+        }
+
+        private void OnPropertyChange (object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == "Data") {
+                SyncModel ();
             }
         }
 
-        private void OnTimeEntryManagerPropertyChanged (object sender, PropertyChangedEventArgs args)
+        private void SyncModel ()
         {
-            if (args.PropertyName == ActiveTimeEntryManager.PropertyDraft) {
-                ResetModel ();
-            }
-        }
+            IsPremium = model.Workspace.IsPremium;
+            StartDate = model.StartTime;
+            StopDate = model.StopTime.HasValue ? model.StopTime.Value : DateTime.UtcNow;
+            Description = model.Description;
+            Duration = TimeSpan.FromSeconds (model.GetDuration ().TotalSeconds).ToString ();
+            ProjectName = model.Project != null ? model.Project.Name : string.Empty;
+            TagNames = tagsView.Data.ToList ();
 
-        private void OnPropertyChange (object sender, EventArgs e)
-        {
-            if (Model.Id == Guid.Empty) {
-                Dispose ();
+            if (model.Project != null) {
+                if (model.Project.Client != null) {
+                    ClientName = model.Project.Client.Name;
+                }
             }
-
-            if (timeEntryManager != null) {
-                timeEntryManager.PropertyChanged -= OnTimeEntryManagerPropertyChanged;
-                timeEntryManager = null;
-            }
-
         }
     }
 }
