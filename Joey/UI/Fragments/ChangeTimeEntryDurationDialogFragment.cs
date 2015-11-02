@@ -7,28 +7,48 @@ using Android.Text;
 using Android.Text.Style;
 using Android.Views;
 using Android.Widget;
-using Toggl.Phoebe.Analytics;
-using Toggl.Phoebe.Data;
-using Toggl.Phoebe.Data.Models;
-using XPlatUtils;
 using Toggl.Joey.UI.Utils;
 using Toggl.Joey.UI.Views;
+using Toggl.Phoebe;
+using Toggl.Phoebe.Analytics;
+using Toggl.Phoebe.Data;
+using XPlatUtils;
 
 namespace Toggl.Joey.UI.Fragments
 {
     public class ChangeTimeEntryDurationDialogFragment : BaseDialogFragment
     {
-        private static readonly string TimeEntryIdArgument = "com.toggl.timer.time_entry_id";
+        public interface IChangeDuration
+        {
+            void OnChangeDuration (TimeSpan newDuration);
+        }
+
+        private static readonly string StartTimeId = "com.toggl.timer.start_time";
+        private static readonly string StopTimeId = "com.toggl.timer.stop_time";
         private const string NewDurationHoursKey = "com.toggl.timer.new_duration_hours";
         private const string NewDurationMinutesKey = "com.toggl.timer.new_duration_mins";
         private const string DigitsEnteredKey = "com.toggl.timer.digits_entered";
 
-        public ChangeTimeEntryDurationDialogFragment (ITimeEntryModel model)
-        {
-            var args = new Bundle ();
-            args.PutString (TimeEntryIdArgument, model.Id.ToString ());
+        private TextView durationTextView;
+        private ImageButton deleteImageButton;
+        private Button add5Button;
+        private Button add30Button;
+        private Button okButton;
 
-            Arguments = args;
+        private readonly Button[] numButtons = new Button[10];
+        private Duration oldDuration;
+        private Duration newDuration;
+        private int digitsEntered;
+        private IChangeDuration onChangeDurationHandler;
+
+        private DateTime StartTime
+        {
+            get { return new DateTime (Arguments.GetLong (StartTimeId)); }
+        }
+
+        private DateTime StopTime
+        {
+            get { return new DateTime (Arguments.GetLong (StopTimeId)); }
         }
 
         public ChangeTimeEntryDurationDialogFragment ()
@@ -39,46 +59,30 @@ namespace Toggl.Joey.UI.Fragments
         {
         }
 
-        private Guid TimeEntryId
+        public static ChangeTimeEntryDurationDialogFragment NewInstance (DateTime stopTime, DateTime startTime)
         {
-            get {
-                var id = Guid.Empty;
-                if (Arguments != null) {
-                    Guid.TryParse (Arguments.GetString (TimeEntryIdArgument), out id);
-                }
-                return id;
-            }
+            var fragment = new ChangeTimeEntryDurationDialogFragment ();
+
+            var args = new Bundle ();
+            args.PutLong (StopTimeId, stopTime.Ticks);
+            args.PutLong (StartTimeId, startTime.Ticks);
+            fragment.Arguments = args;
+
+            return fragment;
         }
 
-        protected TextView DurationTextView { get; private set; }
-
-        protected ImageButton DeleteImageButton { get; private set; }
-
-        protected Button Add5Button { get; private set; }
-
-        protected Button Add30Button { get; private set; }
-
-        protected Button OkButton { get; private set; }
-
-        private readonly Button[] numButtons = new Button[10];
-        private TimeEntryModel model;
-        private Duration oldDuration;
-        private Duration newDuration;
-        private int digitsEntered;
-        private bool enabled;
-
-        public override void OnCreate (Bundle state)
+        public override void OnCreate (Bundle savedInstanceState)
         {
-            base.OnCreate (state);
+            base.OnCreate (savedInstanceState);
 
-            if (state != null) {
-                digitsEntered = state.GetInt (DigitsEnteredKey, digitsEntered);
+            if (savedInstanceState != null) {
+                digitsEntered = savedInstanceState.GetInt (DigitsEnteredKey, digitsEntered);
                 newDuration = new Duration (
-                    state.GetInt (NewDurationHoursKey, newDuration.Hours),
-                    state.GetInt (NewDurationMinutesKey, newDuration.Minutes));
+                    savedInstanceState.GetInt (NewDurationHoursKey, newDuration.Hours),
+                    savedInstanceState.GetInt (NewDurationMinutesKey, newDuration.Minutes));
             }
 
-            LoadData ();
+            oldDuration = GetDuration ();
         }
 
         public override void OnSaveInstanceState (Bundle outState)
@@ -90,26 +94,20 @@ namespace Toggl.Joey.UI.Fragments
             outState.PutInt (NewDurationMinutesKey, newDuration.Minutes);
         }
 
-        private async void LoadData ()
+        public ChangeTimeEntryDurationDialogFragment SetChangeDurationHandler (IChangeDuration handler)
         {
-            model = new TimeEntryModel (TimeEntryId);
-            await model.LoadAsync ();
-            if (model.Workspace == null || model.Workspace.Id == Guid.Empty) {
-                Dismiss ();
-            } else {
-                oldDuration = model.GetDuration ();
-                enabled = true;
-            }
+            onChangeDurationHandler = handler;
+            return this;
         }
 
-        public override Dialog OnCreateDialog (Bundle state)
+        public override Dialog OnCreateDialog (Bundle savedInstanceState)
         {
             var view = LayoutInflater.From (Activity)
                        .Inflate (Resource.Layout.ChangeTimeEntryDurationDialogFragment, null);
-            DurationTextView = view.FindViewById<TextView> (Resource.Id.DurationTextView).SetFont (Font.Roboto);
-            DeleteImageButton = view.FindViewById<ImageButton> (Resource.Id.DeleteImageButton);
-            Add5Button = view.FindViewById<Button> (Resource.Id.Add5Button).SetFont (Font.RobotoLight);
-            Add30Button = view.FindViewById<Button> (Resource.Id.Add30Button).SetFont (Font.RobotoLight);
+            durationTextView = view.FindViewById<TextView> (Resource.Id.DurationTextView).SetFont (Font.Roboto);
+            deleteImageButton = view.FindViewById<ImageButton> (Resource.Id.DeleteImageButton);
+            add5Button = view.FindViewById<Button> (Resource.Id.Add5Button).SetFont (Font.RobotoLight);
+            add30Button = view.FindViewById<Button> (Resource.Id.Add30Button).SetFont (Font.RobotoLight);
             numButtons [0] = view.FindViewById<Button> (Resource.Id.Num0Button).SetFont (Font.RobotoLight);
             numButtons [1] = view.FindViewById<Button> (Resource.Id.Num1Button).SetFont (Font.RobotoLight);
             numButtons [2] = view.FindViewById<Button> (Resource.Id.Num2Button).SetFont (Font.RobotoLight);
@@ -121,13 +119,13 @@ namespace Toggl.Joey.UI.Fragments
             numButtons [8] = view.FindViewById<Button> (Resource.Id.Num8Button).SetFont (Font.RobotoLight);
             numButtons [9] = view.FindViewById<Button> (Resource.Id.Num9Button).SetFont (Font.RobotoLight);
 
-            DeleteImageButton.Click += OnDeleteImageButtonClick;
-            DeleteImageButton.LongClick += OnDeleteImageButtonLongClick;
+            deleteImageButton.Click += OnDeleteImageButtonClick;
+            deleteImageButton.LongClick += OnDeleteImageButtonLongClick;
             foreach (var numButton in numButtons) {
                 numButton.Click += OnNumButtonClick;
             }
-            Add5Button.Click += OnAdd5ButtonClick;
-            Add30Button.Click += OnAdd30ButtonClick;
+            add5Button.Click += OnAdd5ButtonClick;
+            add30Button.Click += OnAdd30ButtonClick;
 
             return new AlertDialog.Builder (Activity)
                    .SetTitle (Resource.String.ChangeTimeEntryDurationDialogTitle)
@@ -143,7 +141,7 @@ namespace Toggl.Joey.UI.Fragments
 
             // AlertDialog buttons aren't available earlier:
             var dia = (AlertDialog)Dialog;
-            OkButton = dia.GetButton ((int)DialogButtonType.Positive);
+            okButton = dia.GetButton ((int)DialogButtonType.Positive);
 
             Rebind ();
 
@@ -152,7 +150,7 @@ namespace Toggl.Joey.UI.Fragments
 
         private void Rebind ()
         {
-            if (!enabled || DurationTextView == null) {
+            if (durationTextView == null) {
                 return;
             }
 
@@ -185,7 +183,7 @@ namespace Toggl.Joey.UI.Fragments
                         SpanTypes.InclusiveExclusive);
                 }
             }
-            DurationTextView.SetText (durationSpannable, TextView.BufferType.Spannable);
+            durationTextView.SetText (durationSpannable, TextView.BufferType.Spannable);
 
             int num = 0;
             foreach (var numButton in numButtons) {
@@ -193,15 +191,15 @@ namespace Toggl.Joey.UI.Fragments
                 num += 1;
             }
 
-            DeleteImageButton.Enabled = digitsEntered > 0;
-            Add5Button.Enabled = newDuration.IsValid && newDuration.AddMinutes (5).IsValid;
-            Add30Button.Enabled = newDuration.IsValid && newDuration.AddMinutes (30).IsValid;
-            OkButton.Enabled = digitsEntered > 0 && newDuration.IsValid;
+            deleteImageButton.Enabled = digitsEntered > 0;
+            add5Button.Enabled = newDuration.IsValid && newDuration.AddMinutes (5).IsValid;
+            add30Button.Enabled = newDuration.IsValid && newDuration.AddMinutes (30).IsValid;
+            okButton.Enabled = digitsEntered > 0 && newDuration.IsValid;
         }
 
         private void OnDeleteImageButtonClick (object sender, EventArgs e)
         {
-            if (!enabled || digitsEntered < 1) {
+            if (digitsEntered < 1) {
                 return;
             }
             newDuration = newDuration.RemoveDigit ();
@@ -215,12 +213,8 @@ namespace Toggl.Joey.UI.Fragments
             Rebind ();
         }
 
-        void OnDeleteImageButtonLongClick (object sender, View.LongClickEventArgs e)
+        private void OnDeleteImageButtonLongClick (object sender, View.LongClickEventArgs e)
         {
-            if (!enabled) {
-                return;
-            }
-
             newDuration = Duration.Zero;
             digitsEntered = 0;
             Rebind ();
@@ -228,7 +222,7 @@ namespace Toggl.Joey.UI.Fragments
 
         private void OnNumButtonClick (object sender, EventArgs e)
         {
-            if (!enabled || digitsEntered > 3) {
+            if (digitsEntered > 3) {
                 return;
             }
 
@@ -244,10 +238,6 @@ namespace Toggl.Joey.UI.Fragments
 
         private void OnAdd5ButtonClick (object sender, EventArgs e)
         {
-            if (!enabled) {
-                return;
-            }
-
             var duration = newDuration.AddMinutes (5);
             if (!duration.IsValid) {
                 return;
@@ -260,10 +250,6 @@ namespace Toggl.Joey.UI.Fragments
 
         private void OnAdd30ButtonClick (object sender, EventArgs e)
         {
-            if (!enabled) {
-                return;
-            }
-
             var duration = newDuration.AddMinutes (30);
             if (!duration.IsValid) {
                 return;
@@ -274,19 +260,25 @@ namespace Toggl.Joey.UI.Fragments
             Rebind ();
         }
 
-        private async void OnOkClicked (object sender, DialogClickEventArgs e)
+        private void OnOkClicked (object sender, DialogClickEventArgs e)
         {
-            if (enabled && model != null) {
-                var duration = model.GetDuration ();
-                if (model.State == TimeEntryState.New) {
-                    duration = new TimeSpan (newDuration.Hours, newDuration.Minutes, 0);
-                } else {
-                    // Keep the current seconds and milliseconds
-                    duration = new TimeSpan (0, newDuration.Hours, newDuration.Minutes, duration.Seconds, duration.Milliseconds);
-                }
-                model.SetDuration (duration);
-                await model.SaveAsync ();
+            var duration = new TimeSpan (newDuration.Hours, newDuration.Minutes, 0);
+            if (onChangeDurationHandler != null) {
+                onChangeDurationHandler.OnChangeDuration (duration);
             }
+        }
+
+        private TimeSpan GetDuration ()
+        {
+            if (StartTime.IsMinValue ()) {
+                return TimeSpan.Zero;
+            }
+
+            var duration = StopTime - StartTime;
+            if (duration < TimeSpan.Zero) {
+                duration = TimeSpan.Zero;
+            }
+            return duration;
         }
     }
 }
