@@ -16,7 +16,6 @@
         android:text="Project"
         android:textColor="@color/MaterialPlaceholderColor" />
     <EditText
-        android:id="@+id/EditTimeEntryBitText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:hint="project"

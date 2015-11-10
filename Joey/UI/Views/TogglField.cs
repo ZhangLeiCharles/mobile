@@ -38,7 +38,16 @@ namespace Toggl.Joey.UI.Views
             var inflater = (LayoutInflater)Context.GetSystemService (Context.LayoutInflaterService);
             inflater.Inflate (Resource.Layout.TogglField, this);
 
-            TextField = FindViewById<EditText> (Resource.Id.EditTimeEntryBitText);
+            // Workaround because the duplicated names
+            // inside the component breaks the
+            // databinding.
+            var layout =  FindViewById<RelativeLayout> (Resource.Id.EditTimeEntryBit);
+            for (int i = 0; i < layout.ChildCount; i++) {
+                if (layout.GetChildAt (i) is EditText) {
+                    TextField = (EditText)layout.GetChildAt (i);
+                }
+            }
+
             titleText= FindViewById<TextView> (Resource.Id.EditTimeEntryBitTitle);
             assistView = FindViewById<TextView> (Resource.Id.EditTimeEntryBitAssistView);
             arrow = FindViewById<ImageView> (Resource.Id.EditTimeEntryBitArrow);
