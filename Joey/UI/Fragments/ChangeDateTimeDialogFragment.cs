@@ -8,7 +8,6 @@ using Android.Views;
 using Android.Widget;
 using Toggl.Joey.UI.Utils;
 using Toggl.Joey.UI.Views;
-using Toggl.Phoebe;
 using Toggl.Phoebe.Net;
 using XPlatUtils;
 
@@ -18,10 +17,10 @@ namespace Toggl.Joey.UI.Fragments
     {
         public interface IChangeDateTime
         {
-            void OnChangeDateTime (DateTime newDateTime, string dialogTag);
+            void OnChangeDateTime (TimeSpan timeDiff, string dialogTag);
         }
 
-        private static readonly string TimeToModifyArgument = "com.toggl.timer.initialtime";
+        private static readonly string InitialTimeArgument = "com.toggl.timer.initialtime";
         private static readonly string DialogTitleArgument = "com.toggl.timer.dialogtitle";
 
         private bool viewsSetup;
@@ -32,9 +31,9 @@ namespace Toggl.Joey.UI.Fragments
         private DatePicker datePicker;
         private IChangeDateTime changeDateTimeHandler;
 
-        private DateTime TimeToModify
+        private DateTime InitialTime
         {
-            get { return new DateTime (Arguments.GetLong (TimeToModifyArgument)); }
+            get { return new DateTime (Arguments.GetLong (InitialTimeArgument)); }
         }
 
         private string DialogTitle
@@ -55,7 +54,10 @@ namespace Toggl.Joey.UI.Fragments
             var fragment = new ChangeDateTimeDialogFragment ();
 
             var args = new Bundle ();
-            args.PutLong (TimeToModifyArgument, initialTime.Ticks);
+
+            // Save time without second or millisecond component
+            // cause neither of this components will be edited.
+            args.PutLong (InitialTimeArgument, GetTrunkedTime (initialTime).Ticks);
             args.PutString (DialogTitleArgument, dialogTitle);
             fragment.Arguments = args;
 
@@ -98,8 +100,8 @@ namespace Toggl.Joey.UI.Fragments
 
             viewsSetup = true;
 
-            var time = GetInitialTime ();
-            var date = GetInitialDate ();
+            var time = InitialTime;
+            var date = InitialTime.Date;
 
             timePicker.SetIs24HourView (new Java.Lang.Boolean (
                                             DateFormat.Is24HourFormat (ServiceContainer.Resolve<Context> ())));
@@ -108,7 +110,7 @@ namespace Toggl.Joey.UI.Fragments
             timePicker.TimeChanged += OnTimePickerTimeChanged;
 
             datePicker.Init (date.Year, date.Month - 1, date.Day, this);
-            if (Android.OS.Build.VERSION.SdkInt >= BuildVersionCodes.Lollipop) {
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.Lollipop) {
                 var userData = ServiceContainer.Resolve<AuthManager> ().User;
                 datePicker.FirstDayOfWeek =  ((int) userData.StartOfWeek) + 1; // FirstDayOfWeek must be between 1 - 7, Our days go from 0 - 6.
             }
@@ -143,7 +145,7 @@ namespace Toggl.Joey.UI.Fragments
                 datePicker.Visibility = ViewStates.Visible;
             }
 
-            var dateTime = DateTime;
+            var dateTime = DateTimeFromPicker;
             timeTabRadioButton.Text = dateTime.ToDeviceTimeString ();
             dateTabRadioButton.Text = dateTime.ToDeviceDateString ();
         }
@@ -161,35 +163,22 @@ namespace Toggl.Joey.UI.Fragments
         private void OnOkButtonClicked (object sender, DialogClickEventArgs args)
         {
             if (changeDateTimeHandler != null) {
-                changeDateTimeHandler.OnChangeDateTime (DateTime, Tag);
+                changeDateTimeHandler.OnChangeDateTime (DateTimeFromPicker - InitialTime, Tag);
             }
         }
 
-        private DateTime DateTime
+        private DateTime DateTimeFromPicker
         {
             get {
                 return DateTime.SpecifyKind (datePicker.DateTime
                                              .AddHours (timePicker.CurrentHour.IntValue ())
-                                             .AddMinutes (timePicker.CurrentMinute.IntValue ()), DateTimeKind.Local);
+                                             .AddMinutes (timePicker.CurrentMinute.IntValue ()), DateTimeKind.Unspecified);
             }
         }
 
-        private DateTime GetInitialTime ()
+        private static DateTime GetTrunkedTime (DateTime time)
         {
-            var time = Toggl.Phoebe.Time.Now;
-            if (!TimeToModify.IsMinValue ()) {
-                time = TimeToModify.ToLocalTime ();
-            }
-            return time;
-        }
-
-        protected DateTime GetInitialDate ()
-        {
-            var date = Toggl.Phoebe.Time.Now;
-            if (!TimeToModify.IsMinValue ()) {
-                date = TimeToModify.ToLocalTime ().Date;
-            }
-            return date;
+            return new DateTime (time.Year, time.Month, time.Day, time.Hour, time.Minute, 0);
         }
     }
 }
