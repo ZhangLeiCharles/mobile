@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Timers;
 using PropertyChanged;
 using Toggl.Phoebe.Analytics;
 using Toggl.Phoebe.Data.Models;
@@ -18,6 +19,7 @@ namespace Toggl.Phoebe.Data.ViewModels
         private TagCollectionView tagsView;
         private TimeEntryModel model;
         private Guid timeEntryId;
+        private Timer durationTimer;
 
         public EditTimeEntryViewModel (Guid timeEntryId)
         {
@@ -28,6 +30,9 @@ namespace Toggl.Phoebe.Data.ViewModels
         public async Task Init ()
         {
             IsLoading  = true;
+
+            durationTimer = new Timer ();
+            durationTimer.Elapsed += DurationTimerCallback;
 
             tagsView = new TagCollectionView (timeEntryId);
             await tagsView.ReloadAsync ();
@@ -43,6 +48,9 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         public void Dispose ()
         {
+            durationTimer.Elapsed -= DurationTimerCallback;
+            durationTimer.Dispose ();
+
             model.PropertyChanged -= OnPropertyChange;
             model = null;
         }
@@ -52,6 +60,8 @@ namespace Toggl.Phoebe.Data.ViewModels
         public bool IsLoading { get; set; }
 
         public bool IsPremium { get; set; }
+
+        public bool IsRunning { get; set; }
 
         public string Duration { get; set; }
 
@@ -77,15 +87,15 @@ namespace Toggl.Phoebe.Data.ViewModels
             ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Change Duration";
         }
 
-        public void ChangeTimeEntryStart (DateTime newStartTime)
+        public void ChangeTimeEntryStart (TimeSpan diffTime)
         {
-            model.StartTime = newStartTime;
+            model.StartTime += diffTime;
             ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Change Start Time";
         }
 
-        public void ChangeTimeEntryStop (DateTime newStopTime)
+        public void ChangeTimeEntryStop (TimeSpan diffTime)
         {
-            model.StopTime = newStopTime;
+            model.StopTime += diffTime;
             ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Change Stop Time";
         }
 
@@ -98,26 +108,50 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         private void OnPropertyChange (object sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == "Data") {
+            if (e.PropertyName == "Data" ||
+                    e.PropertyName == "StartTime" ||
+                    e.PropertyName == "Duration" ||
+                    e.PropertyName == "StopTime") {
                 SyncModel ();
             }
         }
 
         private void SyncModel ()
         {
-            IsPremium = model.Workspace.IsPremium;
-            StartDate = model.StartTime;
-            StopDate = model.StopTime.HasValue ? model.StopTime.Value : DateTime.UtcNow;
+            StartDate = model.StartTime.ToLocalTime ();
+            StopDate = model.StopTime.HasValue ? model.StopTime.Value.ToLocalTime () : DateTime.UtcNow.ToLocalTime ();
+            Duration = TimeSpan.FromSeconds (model.GetDuration ().TotalSeconds).ToString ().Substring (0, 8);
             Description = model.Description;
-            Duration = TimeSpan.FromSeconds (model.GetDuration ().TotalSeconds).ToString ();
             ProjectName = model.Project != null ? model.Project.Name : string.Empty;
             TagNames = tagsView.Data.ToList ();
+            IsBillable = model.IsBillable;
+            IsPremium = model.Workspace.IsPremium;
 
             if (model.Project != null) {
                 if (model.Project.Client != null) {
                     ClientName = model.Project.Client.Name;
                 }
             }
+
+            if (model.State == TimeEntryState.Running && !IsRunning) {
+                IsRunning = true;
+                durationTimer.Start ();
+            } else if (model.State != TimeEntryState.Running) {
+                IsRunning = false;
+                durationTimer.Stop ();
+            }
+        }
+
+        private void DurationTimerCallback (object sender, ElapsedEventArgs e)
+        {
+            var duration = model.GetDuration ();
+            durationTimer.Interval = 1000 - duration.Milliseconds;
+
+            // Update on UI Thread
+            ServiceContainer.Resolve<IPlatformUtils> ().DispatchOnUIThread (() => {
+                Duration = TimeSpan.FromSeconds (duration.TotalSeconds).ToString ().Substring (0, 8);
+            });
+
         }
     }
 }

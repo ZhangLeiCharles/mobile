@@ -23,7 +23,7 @@ namespace Toggl.Joey.UI.Fragments
     {
         private static readonly string TimeEntryIdArgument = "com.toggl.timer.time_entry_id";
 
-        // components
+        public EditTimeEntryViewModel ViewModel { get; private set; }
         public TextView DurationTextView { get; private set; }
         public EditText StartTimeEditText { get; private set; }
         public EditText StopTimeEditText { get; private set; }
@@ -32,26 +32,6 @@ namespace Toggl.Joey.UI.Fragments
         public TogglField DescriptionField { get; private set; }
         public TogglTagsField TagsField { get; private set; }
         private ActionBar toolbar;
-
-        public EditTimeEntryViewModel ViewModel { get; private set; }
-
-        #region Binded properties
-
-        // For the moment, our Bind library doesn't let us
-        // to use something like converters.
-        // that's why we have to bind to direct properties.
-
-        private bool IsBillable
-        {
-            get { return BillableCheckBox.Checked; }
-            set {
-                var label = value ? GetString (Resource.String.CurrentTimeEntryEditBillableChecked) : GetString (Resource.String.CurrentTimeEntryEditBillableUnchecked);
-                BillableCheckBox.Text = label;
-                BillableCheckBox.Checked = value;
-            }
-        }
-
-        #endregion
 
         private Guid TimeEntryId
         {
@@ -148,21 +128,32 @@ namespace Toggl.Joey.UI.Fragments
             ViewModel = new EditTimeEntryViewModel (TimeEntryId);
             await ViewModel.Init ();
 
-            this.SetBinding (() => ViewModel.Duration, () => DurationTextView.Text);
-            this.SetBinding (() => ViewModel.StartDate, () => StartTimeEditText.Text ).ConvertSourceToTarget (dateTime => dateTime.ToDeviceTimeString ());
-            this.SetBinding (() => ViewModel.StopDate, () => StopTimeEditText.Text ).ConvertSourceToTarget (dateTime => dateTime.ToDeviceTimeString ());
-            this.SetBinding (() => ViewModel.ProjectName, () => ProjectField.TextField.Text);
-            this.SetBinding (() => ViewModel.ClientName, () => ProjectField.AssistViewTitle);
-            this.SetBinding (() => ViewModel.TagNames, () => TagsField.TagNames);
-            this.SetBinding (() => ViewModel.Description, () => DescriptionField.TextField.Text, BindingMode.TwoWay);
-            this.SetBinding (() => ViewModel.IsBillable, () => BillableCheckBox.Checked, BindingMode.TwoWay);
-            this.SetBinding (() => ViewModel.IsPremium, () => BillableCheckBox.Visibility).ConvertSourceToTarget (isVisible => isVisible ? ViewStates.Visible : ViewStates.Gone);
+            durationBinding = this.SetBinding (() => ViewModel.Duration, () => DurationTextView.Text);
+            startTimeBinding = this.SetBinding (() => ViewModel.StartDate, () => StartTimeEditText.Text).ConvertSourceToTarget (dateTime => dateTime.ToDeviceTimeString ());
+            stopTimeBinding = this.SetBinding (() => ViewModel.StopDate, () => StopTimeEditText.Text).ConvertSourceToTarget (dateTime => dateTime.ToDeviceTimeString ());
+            projectBinding = this.SetBinding (() => ViewModel.ProjectName, () => ProjectField.TextField.Text);
+            clientBinding = this.SetBinding (() => ViewModel.ClientName, () => ProjectField.AssistViewTitle);
+            tagBinding = this.SetBinding (() => ViewModel.TagNames, () => TagsField.TagNames);
+            descriptionBinding = this.SetBinding (() => ViewModel.Description, () => DescriptionField.TextField.Text, BindingMode.TwoWay);
+            isPremiumBinding = this.SetBinding (() => ViewModel.IsPremium, () => BillableCheckBox.Visibility).ConvertSourceToTarget (isVisible => isVisible ? ViewStates.Visible : ViewStates.Gone);
+            isBillableBinding = this.SetBinding (() => ViewModel.IsBillable, () => BillableCheckBox.Checked, BindingMode.TwoWay);
+            billableBinding = this.SetBinding (() => ViewModel.IsBillable)
+            .WhenSourceChanges (() => {
+                var label = ViewModel.IsBillable ? GetString (Resource.String.CurrentTimeEntryEditBillableChecked) : GetString (Resource.String.CurrentTimeEntryEditBillableUnchecked);
+                BillableCheckBox.Text = label;
+            });
         }
 
         public override void OnDestroyView ()
         {
             ViewModel.Dispose ();
             base.OnDestroyView ();
+        }
+
+        public override void OnPause ()
+        {
+            Task.Run (async () => await ViewModel.SaveModel ());
+            base.OnPause ();
         }
 
         private void OnProjectEditTextClick (object sender, EventArgs e)
@@ -177,12 +168,12 @@ namespace Toggl.Joey.UI.Fragments
             //new ChooseTimeEntryTagsDialogFragment (TimeEntry.Workspace.Id, new List<TimeEntryData> {TimeEntry.Data}).Show (FragmentManager, "tags_dialog");
         }
 
-        public void OnChangeDateTime (DateTime newDateTime, string dialogTag)
+        public void OnChangeDateTime (TimeSpan timeDiff, string dialogTag)
         {
             if (dialogTag == "start_time_dialog") {
-                ViewModel.ChangeTimeEntryStart (newDateTime);
+                ViewModel.ChangeTimeEntryStart (timeDiff);
             } else {
-                ViewModel.ChangeTimeEntryStop (newDateTime);
+                ViewModel.ChangeTimeEntryStop (timeDiff);
             }
         }
 
@@ -193,9 +184,14 @@ namespace Toggl.Joey.UI.Fragments
 
         public override bool OnOptionsItemSelected (IMenuItem item)
         {
-            Task.Run (async () => await ViewModel.SaveModel ());
             Activity.OnBackPressed ();
             return base.OnOptionsItemSelected (item);
         }
+
+        private Binding<string, string> durationBinding, projectBinding, clientBinding, descriptionBinding;
+        private Binding<DateTime, string> startTimeBinding, stopTimeBinding;
+        private Binding<List<string>, List<string>> tagBinding;
+        private Binding<bool, ViewStates> isPremiumBinding;
+        private Binding<bool, bool> isBillableBinding, billableBinding;
     }
 }
