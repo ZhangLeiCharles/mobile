@@ -53,9 +53,6 @@ namespace Toggl.Joey.UI.Adapters
                     dataView.CollectionChanged -= OnCollectionChanged;
                     dataView.IsLoadingChanged -= OnLoading;
                     dataView.HasMoreChanged -= OnHasMore;
-
-                    dataView.Dispose ();
-                    dataView = null;
                 }
             }
             base.Dispose (disposing);

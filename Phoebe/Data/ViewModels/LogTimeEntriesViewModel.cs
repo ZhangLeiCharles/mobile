@@ -48,6 +48,7 @@ namespace Toggl.Phoebe.Data.ViewModels
                 subscriptionSettingChanged = null;
             }
 
+            collectionView.Dispose ();
             timeEntryManager.PropertyChanged -= OnActiveTimeEntryManagerPropertyChanged;
             timeEntryManager = null;
 

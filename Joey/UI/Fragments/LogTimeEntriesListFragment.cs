@@ -103,8 +103,8 @@ namespace Toggl.Joey.UI.Fragments
                 return;
             }
 
-            ViewModel.Dispose ();
             ReleaseRecyclerView ();
+            ViewModel.Dispose ();
 
             base.OnDestroyView ();
         }
