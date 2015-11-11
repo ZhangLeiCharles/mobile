@@ -19,7 +19,7 @@ namespace Toggl.Phoebe
             ServiceContainer.Register<ForeignRelationManager> ();
             ServiceContainer.Register<TimeCorrectionManager> ();
             ServiceContainer.Register<ISyncManager> (() => new SyncManager ());
-            if (ServiceContainer.Resolve<IPlatformInfo> ().IsWidgetAvailable) {
+            if (ServiceContainer.Resolve<IPlatformUtils> ().IsWidgetAvailable) {
                 ServiceContainer.Register<WidgetSyncManager> (() => new WidgetSyncManager ());
             }
             ServiceContainer.Register<IPushClient> (() => new PushRestClient (Build.ApiUrl));

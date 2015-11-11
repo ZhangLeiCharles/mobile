@@ -20,6 +20,11 @@ namespace Toggl.Joey.UI.Activities
         private Subscription<TogglHttpResponseMessage> subscriptionTogglHttpResponse;
         private int syncCount;
 
+        /// <summary>
+        /// The activity that is currently in the foreground.
+        /// </summary>
+        public static BaseActivity CurrentActivity { get; private set; }
+
         private void OnSyncStarted (SyncStartedMessage msg)
         {
             if (Handle == IntPtr.Zero) {
@@ -99,6 +104,8 @@ namespace Toggl.Joey.UI.Activities
         protected sealed override void OnResume ()
         {
             base.OnResume ();
+            CurrentActivity = this;
+
             if (!StartAuthActivity ()) {
                 OnResumeActivity ();
             }
@@ -110,6 +117,7 @@ namespace Toggl.Joey.UI.Activities
 
             // Make sure that the components are initialized (and that this initialisation wouldn't cause a lag)
             var app = (AndroidApp)Application;
+
             if (!app.ComponentsInitialized) {
                 Handler.PostDelayed (delegate {
                     app.InitializeComponents ();

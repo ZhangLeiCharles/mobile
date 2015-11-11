@@ -13,7 +13,7 @@ namespace Toggl.Phoebe
         public void TryUpgrade ()
         {
             var settingsStore = ServiceContainer.Resolve<ISettingsStore> ();
-            var platformInfo = ServiceContainer.Resolve<IPlatformInfo> ();
+            var platformInfo = ServiceContainer.Resolve<IPlatformUtils> ();
             var log = ServiceContainer.Resolve<ILogger> ();
 
             var oldVersion = settingsStore.LastAppVersion;
