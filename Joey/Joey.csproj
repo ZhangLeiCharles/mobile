@@ -114,7 +114,6 @@
     <Compile Include="UI\Views\ProfileImageView.cs" />
     <Compile Include="UI\Utils\CachingUtil.cs" />
     <Compile Include="UI\Fragments\ChooseTimeEntryTagsDialogFragment.cs" />
-    <Compile Include="UI\Adapters\TagsAdapter.cs" />
     <Compile Include="UI\Utils\BindableViewHolder.cs" />
     <Compile Include="UI\Utils\ModelViewHolder.cs" />
     <Compile Include="UI\Views\TextViewExtensions.cs" />

@@ -124,6 +124,7 @@
     <string name="ChooseTimeEntryTagsDialogTitle">Select tags</string>
     <string name="ChooseTimeEntryTagsDialogCancel">Cancel</string>
     <string name="ChooseTimeEntryTagsDialogOk">Ok</string>
+    <string name="ChooseTimeEntryTagsDialogCreate">Create New Tag!</string>
     <string name="TagsAdapterCreateTag">New tag</string>
     <string name="ChooseTimeEntryProjectDialogTitle">Select project</string>
     <string name="ChooseTimeEntryProjectDialogCancel">Cancel</string>

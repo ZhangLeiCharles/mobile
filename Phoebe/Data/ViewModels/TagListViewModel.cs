@@ -1,184 +1,64 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
 using System.Threading.Tasks;
 using Toggl.Phoebe.Analytics;
 using Toggl.Phoebe.Data.DataObjects;
 using Toggl.Phoebe.Data.Models;
 using Toggl.Phoebe.Data.Utils;
-using Toggl.Phoebe.Data.Views;
 using XPlatUtils;
 
 namespace Toggl.Phoebe.Data.ViewModels
 {
-    public class TagListViewModel : IViewModel<ITimeEntryModel>
+    public class TagListViewModel : IVModel<WorkspaceModel>
     {
-        private ITimeEntryModel model;
-        private WorkspaceTagsView tagList;
-        private bool isLoading;
-        private Guid workspaceId;
-        private IList<TimeEntryData> timeEntryList;
-        private List<TimeEntryTagData> modelTags;
+        // This viewMode is apparently simple but
+        // it needs the code related with the update of
+        // the list. (subscription and reload of data
+        // everytime a tag is changed/created/deleted
 
-        public TagListViewModel (Guid workspaceId, IList<TimeEntryData> timeEntryList)
+        private Guid workspaceId;
+
+        public TagListViewModel (Guid workspaceId)
         {
-            this.timeEntryList = timeEntryList;
             this.workspaceId = workspaceId;
             ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Select Tags";
         }
 
-        public async void Init ()
+        public async Task Init ()
         {
             IsLoading = true;
 
-            // Create list manager.
-            tagList = new WorkspaceTagsView (workspaceId);
-
-            // Create model.
-            if (timeEntryList.Count > 1) {
-                Model = new TimeEntryGroup (timeEntryList);
-            } else if (timeEntryList.Count == 1) {
-                Model = new TimeEntryModel (timeEntryList [0]);
-            }
-
             // Create tag list.
-            var dataStore = ServiceContainer.Resolve<IDataStore> ();
-            modelTags = new List<TimeEntryTagData> ();
+            await LoadTagsAsync ();
 
-            foreach (var timeEntryData in timeEntryList) {
-                var tags = await dataStore.Table<TimeEntryTagData> ()
-                           .QueryAsync (r => r.TimeEntryId == timeEntryData.Id && r.DeletedAt == null);
-                modelTags.AddRange (tags);
-            }
-
-            Model.PropertyChanged += OnModelPropertyChanged;
             IsLoading = false;
-        }
-
-        public async void SaveChanges (List<TagData> selectedTags)
-        {
-
-            // Delete unused tag relations:
-            var deleteTasks = modelTags
-                              .Where (oldTag => !selectedTags.Any (newTag => newTag.Id == oldTag.TagId))
-                              .Select (data => new TimeEntryTagModel (data).DeleteAsync ())
-                              .ToList();
-
-            // Create new tag relations:
-            var createTasks = new List<Task> ();
-            foreach (var timeEntryData in timeEntryList) {
-                var tasks = selectedTags
-                            .Where (newTag => !modelTags.Any (oldTag => oldTag.TagId == newTag.Id))
-                .Select (data => new TimeEntryTagModel () { TimeEntry = new TimeEntryModel (timeEntryData), Tag = new TagModel (data) } .SaveAsync ())
-                .ToList();
-                createTasks.AddRange (tasks);
-            }
-
-            await Task.WhenAll (deleteTasks.Concat (createTasks));
-
-            if (deleteTasks.Any<Task> () || createTasks.Any<Task> ()) {
-                model.Touch ();
-                await model.SaveAsync ();
-            }
         }
 
         public void Dispose ()
         {
-            model.PropertyChanged -= OnModelPropertyChanged;
-            tagList.Dispose ();
-            tagList = null;
+            TagCollection = null;
         }
 
-        public IList<TimeEntryData> TimeEntryList
+        public bool IsLoading { get; set; }
+
+        public ObservableRangeCollection<TagData> TagCollection { get; set; }
+
+        private async Task LoadTagsAsync ()
         {
-            get {
-                return timeEntryList;
-            }
-        }
+            TagCollection = new ObservableRangeCollection<TagData> ();
 
-        public Guid WorkspaceId
-        {
-            get {
-                return workspaceId;
-            }
-        }
+            var store = ServiceContainer.Resolve<IDataStore> ();
+            var tags = await store.Table<TagData> ()
+                       .QueryAsync (r => r.DeletedAt == null
+                                    && r.WorkspaceId == workspaceId);
 
-        public IDataView<TagData> TagListDataView
-        {
-            get {
-                return tagList;
-            }
-        }
+            tags.Sort ((a, b) => {
+                var aName = a != null ? (a.Name ?? String.Empty) : String.Empty;
+                var bName = b != null ? (b.Name ?? String.Empty) : String.Empty;
+                return String.Compare (aName, bName, StringComparison.Ordinal);
+            });
 
-        public IList<int> SelectedTagsIndex
-        {
-            get {
-                int count = 0;
-                var indexes = new List<int>();
-
-                var modelTagsReady = modelTags != null;
-                var workspaceTagsReady = tagList != null && !tagList.IsLoading;
-
-                if (modelTagsReady && workspaceTagsReady) {
-                    foreach (var tag in tagList.Data) {
-                        if (modelTags.Any (t => t.TagId == tag.Id)) {
-                            indexes.Add (count);
-                        }
-                        count++;
-                    }
-                }
-                return indexes;
-            }
-        }
-
-        public event EventHandler OnModelChanged;
-
-        public ITimeEntryModel Model
-        {
-            get {
-                return model;
-            }
-
-            private set {
-
-                model = value;
-
-                if (OnModelChanged != null) {
-                    OnModelChanged (this, EventArgs.Empty);
-                }
-            }
-        }
-
-        public event EventHandler OnIsLoadingChanged;
-
-        public bool IsLoading
-        {
-            get {
-                return isLoading;
-            }
-            private set {
-
-                if (isLoading  == value) {
-                    return;
-                }
-
-                isLoading = value;
-
-                if (OnIsLoadingChanged != null) {
-                    OnIsLoadingChanged (this, EventArgs.Empty);
-                }
-            }
-        }
-
-        private void OnModelPropertyChanged (object sender, PropertyChangedEventArgs args)
-        {
-            if (args.PropertyName == TimeEntryModel.PropertyWorkspace) {
-                if (tagList != null) {
-                    tagList.WorkspaceId = model.Workspace.Id;
-                    workspaceId = model.Workspace.Id;
-                }
-            }
+            TagCollection.AddRange (tags);
         }
     }
 }

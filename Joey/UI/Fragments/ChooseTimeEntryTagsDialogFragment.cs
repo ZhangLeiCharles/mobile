@@ -1,23 +1,48 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using Android.App;
 using Android.Content;
 using Android.OS;
+using Android.Views;
 using Android.Widget;
-using Toggl.Joey.UI.Adapters;
+using GalaSoft.MvvmLight.Helpers;
+using Toggl.Joey.UI.Utils;
+using Toggl.Joey.UI.Views;
 using Toggl.Phoebe.Data.DataObjects;
-using Toggl.Phoebe.Data.Utils;
 using Toggl.Phoebe.Data.ViewModels;
 
 namespace Toggl.Joey.UI.Fragments
 {
+    public interface IUpdateTagList
+    {
+        void OnCreateNewTag (TagData newTagData);
+
+        void OnModifyTagList (List<TagData> newTagList);
+    }
+
     public class ChooseTimeEntryTagsDialogFragment : BaseDialogFragment
     {
-        private static readonly string TimeEntriesIdsArgument = "com.toggl.timer.time_entries_ids";
+        private static readonly string SelectedTagNamesArgument = "com.toggl.timer.selected_tag_names";
         private static readonly string WorkspaceIdArgument = "com.toggl.timer.workspace_id";
         private ListView listView;
         private TagListViewModel viewModel;
+        private IUpdateTagList updateTagHandler;
+
+        private Guid WorkspaceId
+        {
+            get {
+                Guid id;
+                Guid.TryParse (Arguments.GetString (WorkspaceIdArgument), out id);
+                return id;
+            }
+        }
+
+        private IList<string> ExistingTags
+        {
+            get {
+                return Arguments.GetStringArrayList (SelectedTagNamesArgument);
+            }
+        }
 
         public ChooseTimeEntryTagsDialogFragment ()
         {
@@ -27,129 +52,73 @@ namespace Toggl.Joey.UI.Fragments
         {
         }
 
-        public ChooseTimeEntryTagsDialogFragment (Guid workspaceId, IList<TimeEntryData> timeEntryList)
+        public static ChooseTimeEntryTagsDialogFragment NewInstance (Guid workspaceId, List<string> tagNames)
         {
-            var ids = timeEntryList.Select ( t => t.Id.ToString ()).ToList ();
+            var fragment = new ChooseTimeEntryTagsDialogFragment ();
 
             var args = new Bundle ();
             args.PutString (WorkspaceIdArgument, workspaceId.ToString ());
-            args.PutStringArrayList (TimeEntriesIdsArgument, ids);
-            Arguments = args;
+            args.PutStringArrayList (SelectedTagNamesArgument, tagNames);
+            fragment.Arguments = args;
 
-            viewModel = new TagListViewModel (workspaceId, timeEntryList);
-        }
-
-        private IList<string> TimeEntryIds
-        {
-            get {
-                return Arguments != null ? Arguments.GetStringArrayList (TimeEntriesIdsArgument) : new List<string>();
-            }
-        }
-
-        private Guid WorkspaceId
-        {
-            get {
-                var id = Guid.Empty;
-                if (Arguments != null) {
-                    Guid.TryParse (Arguments.GetString (WorkspaceIdArgument), out id);
-                }
-                return id;
-            }
+            return fragment;
         }
 
         public async override void OnCreate (Bundle savedInstanceState)
         {
             base.OnCreate (savedInstanceState);
 
-            if (viewModel == null) {
-                var timeEntryList = await TimeEntryGroup.GetTimeEntryDataList (TimeEntryIds);
-                viewModel = new TagListViewModel (WorkspaceId, timeEntryList);
-            }
-
-            viewModel.OnIsLoadingChanged += OnModelLoaded;
-            viewModel.Init ();
-
-            if (viewModel.Model.Workspace == null || viewModel.Model.Workspace.Id == Guid.Empty) {
-                Dismiss ();
-            }
-        }
-
-        private void OnModelLoaded (object sender, EventArgs e)
-        {
-            if (!viewModel.IsLoading) {
-                if (viewModel.Model != null) {
-                    viewModel.TagListDataView.Updated += OnWorkspaceTagsUpdated;
-                    SelectInitialTags ();
-                } else {
-                    Dismiss ();
-                }
-            }
-        }
-
-        private void OnWorkspaceTagsUpdated (object sender, EventArgs args)
-        {
-            if (!viewModel.TagListDataView.IsLoading) {
-                SelectInitialTags ();
-            }
+            viewModel = new TagListViewModel (WorkspaceId);
+            await viewModel.Init ();
+            SetPreviousSelectedTags ();
         }
 
         public override void OnDestroy ()
         {
-            if (viewModel != null) {
-                viewModel.OnIsLoadingChanged -= OnModelLoaded;
-                viewModel.TagListDataView.Updated -= OnWorkspaceTagsUpdated;
-                viewModel.Dispose ();
-                viewModel = null;
-            }
-
+            viewModel.Dispose ();
             base.OnDestroy ();
-        }
-
-        public override void OnStart ()
-        {
-            base.OnStart ();
-            SelectInitialTags ();
         }
 
         public override Dialog OnCreateDialog (Bundle savedInstanceState)
         {
+            // Mvvm ligth utility to generate an adapter from
+            // an Observable collection.
+            var tagsAdapter = viewModel.TagCollection.GetAdapter (GetTagView);
+
             var dia = new AlertDialog.Builder (Activity)
             .SetTitle (Resource.String.ChooseTimeEntryTagsDialogTitle)
-            .SetAdapter (new TagsAdapter (viewModel.TagListDataView), (IDialogInterfaceOnClickListener)null)
+            .SetAdapter (tagsAdapter, (IDialogInterfaceOnClickListener)null)
             .SetNegativeButton (Resource.String.ChooseTimeEntryTagsDialogCancel, OnCancelButtonClicked)
             .SetPositiveButton (Resource.String.ChooseTimeEntryTagsDialogOk, OnOkButtonClicked)
+            .SetNeutralButton (Resource.String.ChooseTimeEntryTagsDialogCreate, OnCreateButtonClicked)
             .Create ();
 
             listView = dia.ListView;
             listView.ItemsCanFocus = false;
             listView.ChoiceMode = ChoiceMode.Multiple;
-            listView.ItemClick += OnItemClick;
+            SetPreviousSelectedTags ();
 
             return dia;
         }
 
-        private void OnItemClick (object sender, AdapterView.ItemClickEventArgs e)
+        public ChooseTimeEntryTagsDialogFragment SetOnModifyTagListHandler (IUpdateTagList handler)
         {
-            if (e.Id == TagsAdapter.CreateTagId) {
-                // Commit changes the user has made thusfar
-                viewModel.SaveChanges (SelectedTags);
-
-                new CreateTagDialogFragment (WorkspaceId, viewModel.TimeEntryList).Show (FragmentManager, "new_tag_dialog");
-                Dismiss ();
-            }
+            updateTagHandler = handler;
+            return this;
         }
 
-        private void SelectInitialTags ()
+        private void OnCreateButtonClicked (object sender, DialogClickEventArgs args)
         {
-            if (listView == null) {
-                return;
+            // Commit changes the user has made thusfar
+            if (updateTagHandler != null) {
+                updateTagHandler.OnModifyTagList (SelectedTags);
             }
 
-            // Select tags
-            listView.ClearChoices ();
-            foreach (var index in viewModel.SelectedTagsIndex) {
-                listView.SetItemChecked (index, true);
-            }
+            CreateTagDialogFragment.NewInstance (WorkspaceId)
+            .SetCreateNewTagHandler (updateTagHandler)
+            .Show (FragmentManager, "new_tag_dialog");
+
+            Dismiss ();
         }
 
         private void OnCancelButtonClicked (object sender, DialogClickEventArgs args)
@@ -158,18 +127,44 @@ namespace Toggl.Joey.UI.Fragments
 
         private void OnOkButtonClicked (object sender, DialogClickEventArgs args)
         {
-            viewModel.SaveChanges (SelectedTags);
+            updateTagHandler.OnModifyTagList (SelectedTags);
+        }
+
+        private View GetTagView (int position, TagData tagData, View convertView)
+        {
+            View view = convertView ?? LayoutInflater.FromContext (Activity).Inflate (Resource.Layout.TagListItem, null);
+            var nameCheckedTextView = view.FindViewById<CheckedTextView> (Resource.Id.NameCheckedTextView).SetFont (Font.Roboto);
+            nameCheckedTextView.Text = tagData.Name;
+            return view;
         }
 
         private List<TagData> SelectedTags
         {
             get {
-                var selected = listView.CheckedItemPositions;
-                return viewModel.TagListDataView.Data
-                       .Where ((tag, idx) => selected.Get (idx, false))
-                       .ToList ();
+                var list = new List<TagData> ();
+                for (int i = 0; i < viewModel.TagCollection.Count; i++) {
+                    if (listView.CheckedItemPositions.Get (i)) {
+                        list.Add (viewModel.TagCollection [i]);
+                    }
+
+                }
+                return list;
             }
         }
 
+        private void SetPreviousSelectedTags ()
+        {
+            if (viewModel.TagCollection == null || listView == null) {
+                return;
+            }
+
+            var list = ExistingTags;
+            listView.ClearChoices ();
+            for (int i = 0; i < viewModel.TagCollection.Count; i++) {
+                if (list.Contains (viewModel.TagCollection [i].Name)) {
+                    listView.SetSelection (i + 1);
+                }
+            }
+        }
     }
 }
