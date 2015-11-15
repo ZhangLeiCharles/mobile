@@ -9,14 +9,14 @@ using XPlatUtils;
 
 namespace Toggl.Phoebe.Data.Views
 {
-    public class TagCollectionView : ICollectionDataView<string>
+    public class TimeEntryTagCollectionView : ICollectionDataView<string>
     {
         private readonly Guid timeEntryId;
         private readonly HashSet<Guid> tagIds = new HashSet<Guid> ();
         private List<TagData> tagsList = new List<TagData> ();
         private List<string> tagNames = new List<string> ();
 
-        public TagCollectionView (Guid timeEntryId)
+        public TimeEntryTagCollectionView (Guid timeEntryId)
         {
             this.timeEntryId = timeEntryId;
         }
@@ -68,7 +68,12 @@ namespace Toggl.Phoebe.Data.Views
             });
         }
 
-        public IEnumerable<string> Data
+        public IEnumerable<TagData> Data
+        {
+            get { return tagsList; }
+        }
+
+        public List<string> TagNames
         {
             get { return tagNames; }
         }
@@ -99,8 +104,8 @@ namespace Toggl.Phoebe.Data.Views
             // Update tag names list
             tagNames.Clear ();
             tagNames.AddRange (tagsList
-                .Where (t => tagIds.Contains (t.Id))
-                .Select (t => t.Name));
+                               .Where (t => tagIds.Contains (t.Id))
+                               .Select (t => t.Name));
 
             // Notify listeners
             var handler = CollectionChanged;
