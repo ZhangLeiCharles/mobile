@@ -1,13 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using Android.App;
 using Android.Content;
 using Android.OS;
 using Android.Text;
 using Android.Widget;
+using GalaSoft.MvvmLight.Helpers;
 using Toggl.Phoebe.Data.DataObjects;
-using Toggl.Phoebe.Data.Utils;
 using Toggl.Phoebe.Data.ViewModels;
 
 namespace Toggl.Joey.UI.Fragments
@@ -15,29 +13,12 @@ namespace Toggl.Joey.UI.Fragments
     public class CreateTagDialogFragment : BaseDialogFragment
     {
         private static readonly string WorkspaceIdArgument = "com.toggl.timer.workspace_id";
-        private static readonly string TimeEntriesIdsArgument = "com.toggl.timer.time_entry_ids";
 
-        private EditText nameEditText;
         private Button positiveButton;
-        private CreateTagViewModel viewModel;
-
-        public CreateTagDialogFragment ()
-        {
-        }
-
-        public CreateTagDialogFragment (IntPtr jref, Android.Runtime.JniHandleOwnership xfer) : base (jref, xfer)
-        {
-        }
-
-        public CreateTagDialogFragment (Guid workspaceId, IList<TimeEntryData> timeEntryList)
-        {
-            var ids = timeEntryList.Select ( t => t.Id.ToString ()).ToList ();
-
-            var args = new Bundle ();
-            args.PutString (WorkspaceIdArgument, workspaceId.ToString ());
-            args.PutStringArrayList (TimeEntriesIdsArgument, ids);
-            Arguments = args;
-        }
+        private EditText nameEditText { get; set;}
+        private CreateTagViewModel viewModel { get; set;}
+        private Binding<string, string> tagBinding;
+        private IUpdateTagList updateTagHandler;
 
         private Guid WorkspaceId
         {
@@ -50,34 +31,31 @@ namespace Toggl.Joey.UI.Fragments
             }
         }
 
-        private IList<string> TimeEntryIds
+        public CreateTagDialogFragment ()
         {
-            get {
-                return Arguments != null ? Arguments.GetStringArrayList (TimeEntriesIdsArgument) : new List<string>();
-            }
         }
 
-        public override async void OnCreate (Bundle savedInstanceState)
+        public CreateTagDialogFragment (IntPtr jref, Android.Runtime.JniHandleOwnership xfer) : base (jref, xfer)
+        {
+        }
+
+        public static CreateTagDialogFragment NewInstance (Guid workspaceId)
+        {
+            var fragment = new CreateTagDialogFragment ();
+
+            var args = new Bundle ();
+            args.PutString (WorkspaceIdArgument, workspaceId.ToString ());
+            fragment.Arguments = args;
+
+            return fragment;
+        }
+
+        public override void OnCreate (Bundle savedInstanceState)
         {
             base.OnCreate (savedInstanceState);
 
-            if (viewModel == null) {
-                var timeEntryList = await TimeEntryGroup.GetTimeEntryDataList (TimeEntryIds);
-                viewModel = new CreateTagViewModel (WorkspaceId, timeEntryList);
-            }
-            viewModel.OnIsLoadingChanged += OnModelLoaded;
+            viewModel = new CreateTagViewModel (WorkspaceId);
             viewModel.Init ();
-
-            ValidateTagName ();
-        }
-
-        private void OnModelLoaded (object sender, EventArgs e)
-        {
-            if (!viewModel.IsLoading) {
-                if (viewModel == null) {
-                    Dismiss ();
-                }
-            }
         }
 
         public override Dialog OnCreateDialog (Bundle savedInstanceState)
@@ -86,6 +64,9 @@ namespace Toggl.Joey.UI.Fragments
             nameEditText.SetHint (Resource.String.CreateTagDialogHint);
             nameEditText.InputType = InputTypes.TextFlagCapSentences;
             nameEditText.TextChanged += OnNameEditTextTextChanged;
+
+            // Again we need to define binding inside OnCreateDialog
+            tagBinding = this.SetBinding (() => viewModel.TagName, () => nameEditText.Text, BindingMode.TwoWay);
 
             return new AlertDialog.Builder (Activity)
                    .SetTitle (Resource.String.CreateTagDialogTitle)
@@ -101,6 +82,18 @@ namespace Toggl.Joey.UI.Fragments
             ValidateTagName ();
         }
 
+        public override void OnDestroy ()
+        {
+            viewModel.Dispose ();
+            base.OnDestroy ();
+        }
+
+        public CreateTagDialogFragment SetCreateNewTagHandler (IUpdateTagList handler)
+        {
+            updateTagHandler = handler;
+            return this;
+        }
+
         private void OnNameEditTextTextChanged (object sender, TextChangedEventArgs e)
         {
             ValidateTagName ();
@@ -108,7 +101,10 @@ namespace Toggl.Joey.UI.Fragments
 
         private async void OnPositiveButtonClicked (object sender, DialogClickEventArgs e)
         {
-            await viewModel.AssignTag (nameEditText.Text);
+            var newTagData = await viewModel.SaveTagModel ();
+            if (updateTagHandler != null) {
+                updateTagHandler.OnCreateNewTag (newTagData);
+            }
         }
 
         private void ValidateTagName ()
@@ -117,24 +113,7 @@ namespace Toggl.Joey.UI.Fragments
                 return;
             }
 
-            var valid = true;
-            var name = nameEditText.Text;
-
-            if (String.IsNullOrWhiteSpace (name)) {
-                valid = false;
-            }
-
-            positiveButton.Enabled = valid;
-        }
-
-        public override void OnDestroy ()
-        {
-            if (viewModel != null) {
-                viewModel.OnIsLoadingChanged += OnModelLoaded;
-                viewModel.Dispose ();
-            }
-
-            base.OnDestroy ();
+            positiveButton.Enabled = !String.IsNullOrWhiteSpace (nameEditText.Text);
         }
     }
 }

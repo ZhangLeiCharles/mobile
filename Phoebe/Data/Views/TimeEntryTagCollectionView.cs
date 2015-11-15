@@ -21,37 +21,6 @@ namespace Toggl.Phoebe.Data.Views
             this.timeEntryId = timeEntryId;
         }
 
-        private void OnUpdated ()
-        {
-            SortTags ();
-
-            // Update tag names list
-            tagNames.Clear ();
-            tagNames.AddRange (tagsList
-                               .Where (t => tagIds.Contains (t.Id))
-                               .Select (t => t.Name));
-
-            // Notify listeners
-            var handler = CollectionChanged;
-            if (handler != null) {
-                handler (this, new NotifyCollectionChangedEventArgs (NotifyCollectionChangedAction.Reset));
-            }
-        }
-
-        private async Task LoadTagData (Guid id)
-        {
-            var store = ServiceContainer.Resolve<IDataStore> ();
-            var rows = await store.Table<TagData> ().QueryAsync (r => r.Id == id && r.DeletedAt == null);
-            var tag = rows.FirstOrDefault ();
-
-            if (tag != null && tagIds.Contains (tag.Id)) {
-                if (!tagsList.UpdateData (tag)) {
-                    tagsList.Add (tag);
-                }
-                OnUpdated ();
-            }
-        }
-
         public async Task ReloadAsync ()
         {
             if (IsLoading) {
@@ -122,6 +91,37 @@ namespace Toggl.Phoebe.Data.Views
         }
 
         public bool IsLoading { get; private set; }
+
+        private void OnUpdated ()
+        {
+            SortTags ();
+
+            // Update tag names list
+            tagNames.Clear ();
+            tagNames.AddRange (tagsList
+                .Where (t => tagIds.Contains (t.Id))
+                .Select (t => t.Name));
+
+            // Notify listeners
+            var handler = CollectionChanged;
+            if (handler != null) {
+                handler (this, new NotifyCollectionChangedEventArgs (NotifyCollectionChangedAction.Reset));
+            }
+        }
+
+        private async Task LoadTagData (Guid id)
+        {
+            var store = ServiceContainer.Resolve<IDataStore> ();
+            var rows = await store.Table<TagData> ().QueryAsync (r => r.Id == id && r.DeletedAt == null);
+            var tag = rows.FirstOrDefault ();
+
+            if (tag != null && tagIds.Contains (tag.Id)) {
+                if (!tagsList.UpdateData (tag)) {
+                    tagsList.Add (tag);
+                }
+                OnUpdated ();
+            }
+        }
     }
 }
 
