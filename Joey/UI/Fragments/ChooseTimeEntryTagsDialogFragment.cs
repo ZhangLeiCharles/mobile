@@ -96,7 +96,7 @@ namespace Toggl.Joey.UI.Fragments
             listView = dia.ListView;
             listView.ItemsCanFocus = false;
             listView.ChoiceMode = ChoiceMode.Multiple;
-            SetPreviousSelectedTags ();
+            listView.ViewAttachedToWindow += (sender, e) => SetPreviousSelectedTags ();
 
             return dia;
         }
@@ -146,7 +146,6 @@ namespace Toggl.Joey.UI.Fragments
                     if (listView.CheckedItemPositions.Get (i)) {
                         list.Add (viewModel.TagCollection [i]);
                     }
-
                 }
                 return list;
             }
@@ -154,15 +153,16 @@ namespace Toggl.Joey.UI.Fragments
 
         private void SetPreviousSelectedTags ()
         {
-            if (viewModel.TagCollection == null || listView == null) {
+            if (viewModel.IsLoading || listView == null || listView.Adapter == null) {
                 return;
             }
 
             var list = ExistingTags;
             listView.ClearChoices ();
+
             for (int i = 0; i < viewModel.TagCollection.Count; i++) {
                 if (list.Contains (viewModel.TagCollection [i].Name)) {
-                    listView.SetSelection (i + 1);
+                    listView.SetItemChecked (i, true);
                 }
             }
         }
