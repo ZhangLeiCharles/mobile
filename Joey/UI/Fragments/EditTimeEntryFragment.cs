@@ -10,6 +10,7 @@ using GalaSoft.MvvmLight.Helpers;
 using Toggl.Joey.UI.Activities;
 using Toggl.Joey.UI.Utils;
 using Toggl.Joey.UI.Views;
+using Toggl.Phoebe.Data.DataObjects;
 using Toggl.Phoebe.Data.ViewModels;
 using ActionBar = Android.Support.V7.App.ActionBar;
 using Activity = Android.Support.V7.App.AppCompatActivity;
@@ -19,9 +20,19 @@ using Toolbar = Android.Support.V7.Widget.Toolbar;
 
 namespace Toggl.Joey.UI.Fragments
 {
-    public class EditTimeEntryFragment : Fragment, ChangeTimeEntryDurationDialogFragment.IChangeDuration, ChangeDateTimeDialogFragment.IChangeDateTime
+    public class EditTimeEntryFragment : Fragment,
+        ChangeTimeEntryDurationDialogFragment.IChangeDuration,
+        ChangeDateTimeDialogFragment.IChangeDateTime,
+        IUpdateTagList
     {
         private static readonly string TimeEntryIdArgument = "com.toggl.timer.time_entry_id";
+
+        // to avoid weak references to be removed
+        private Binding<string, string> durationBinding, projectBinding, clientBinding, descriptionBinding;
+        private Binding<DateTime, string> startTimeBinding, stopTimeBinding;
+        private Binding<List<string>, List<string>> tagBinding;
+        private Binding<bool, ViewStates> isPremiumBinding;
+        private Binding<bool, bool> isBillableBinding, billableBinding;
 
         public EditTimeEntryViewModel ViewModel { get; private set; }
         public TextView DurationTextView { get; private set; }
@@ -165,7 +176,9 @@ namespace Toggl.Joey.UI.Fragments
 
         private void OnTagsEditTextClick (object sender, EventArgs e)
         {
-            //new ChooseTimeEntryTagsDialogFragment (TimeEntry.Workspace.Id, new List<TimeEntryData> {TimeEntry.Data}).Show (FragmentManager, "tags_dialog");
+            ChooseTimeEntryTagsDialogFragment.NewInstance (ViewModel.WorkspaceId, ViewModel.TagNames)
+            .SetOnModifyTagListHandler (this)
+            .Show (FragmentManager, "tags_dialog");
         }
 
         public void OnChangeDateTime (TimeSpan timeDiff, string dialogTag)
@@ -175,6 +188,16 @@ namespace Toggl.Joey.UI.Fragments
             } else {
                 ViewModel.ChangeTimeEntryStop (timeDiff);
             }
+        }
+
+        public void OnCreateNewTag (TagData newTagData)
+        {
+            Console.WriteLine ("OnCreateNewTag");
+        }
+
+        public void OnModifyTagList (List<TagData> newTagList)
+        {
+            Console.WriteLine ("OnModifyTagList");
         }
 
         public void OnChangeDuration (TimeSpan newDuration)
@@ -187,11 +210,5 @@ namespace Toggl.Joey.UI.Fragments
             Activity.OnBackPressed ();
             return base.OnOptionsItemSelected (item);
         }
-
-        private Binding<string, string> durationBinding, projectBinding, clientBinding, descriptionBinding;
-        private Binding<DateTime, string> startTimeBinding, stopTimeBinding;
-        private Binding<List<string>, List<string>> tagBinding;
-        private Binding<bool, ViewStates> isPremiumBinding;
-        private Binding<bool, bool> isBillableBinding, billableBinding;
     }
 }
