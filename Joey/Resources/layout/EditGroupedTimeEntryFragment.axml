@@ -3,15 +3,115 @@
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/EditTimeEntryFragmentToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:minHeight="?attr/actionBarSize"
+        android:background="@null" />
     <LinearLayout
         android:orientation="vertical"
+        android:minWidth="25px"
+        android:minHeight="25px"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        <fragment
-            android:id="@+id/TimeEntryEditChildFragment"
-            android:name="toggl.joey.ui.fragments.SimpleEditTimeEntryFragment"
+        android:layout_height="wrap_content"
+        android:id="@+id/linearLayout4"
+        android:paddingRight="32dp"
+        android:paddingLeft="32dp"
+        android:paddingBottom="42dp"
+        android:layout_marginTop="20dp">
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="5dp"
+            android:gravity="center_vertical"
+            android:id="@+id/linearLayout5">
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:id="@+id/linearLayout2">
+                <TextView
+                    android:text="Start"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/textView1"
+                    android:layout_marginBottom="0.0dp"
+                    android:layout_marginTop="0.0dp"
+                    android:textSize="16sp"
+                    android:textColor="@color/material_gray_transparent" />
+                <EditText
+                    android:id="@+id/StartTimeEditText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:editable="false"
+                    android:cursorVisible="false"
+                    android:focusableInTouchMode="false"
+                    android:textSize="16sp"
+                    android:layout_marginLeft="10dp"
+                    android:background="@drawable/BackgroundLine"
+                    android:textColor="@color/material_black"
+                    android:text="12:59 AM"
+                    android:drawableRight="@drawable/IcSelectArrowSmallDown"
+                    android:drawablePadding="3dp" />
+            </LinearLayout>
+            <View
+                android:id="@+id/CenterMark"
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:layout_centerInParent="true" />
+            <LinearLayout
+                android:orientation="horizontal"
+                android:id="@+id/linearLayout3"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_toRightOf="@id/CenterMark">
+                <TextView
+                    android:text="End"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/StopTimeEditLabel"
+                    android:textSize="16sp"
+                    android:textColor="@color/material_gray_transparent" />
+                <EditText
+                    android:id="@+id/StopTimeEditText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:editable="false"
+                    android:cursorVisible="false"
+                    android:focusableInTouchMode="false"
+                    android:textSize="16sp"
+                    android:layout_marginLeft="10dp"
+                    android:background="@drawable/BackgroundLine"
+                    android:textColor="@color/material_black"
+                    android:text="12:59 AM"
+                    android:drawableRight="@drawable/IcSelectArrowSmallDown"
+                    android:drawablePadding="3dp" />
+            </LinearLayout>
+        </RelativeLayout>
+    <!-- Dummy item to prevent AutoCompleteTextView from receiving focus -->
+        <LinearLayout
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:layout_width="0px"
+            android:layout_height="0px" />
+        <Toggl.Joey.UI.Views.TogglField
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/Project"
+            android:layout_marginTop="20dp" />
+        <Toggl.Joey.UI.Views.TogglField
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/Description"
+            android:layout_marginTop="20dp" />
+        <Toggl.Joey.UI.Views.TogglTagsField
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/TagsBit"
+            android:layout_marginTop="20dp" />
     </LinearLayout>
     <FrameLayout
         android:layout_width="match_parent"

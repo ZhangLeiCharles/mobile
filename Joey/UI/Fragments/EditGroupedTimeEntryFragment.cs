@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Android.Content;
 using Android.OS;
 using Android.Support.V4.App;
@@ -21,9 +22,8 @@ namespace Toggl.Joey.UI.Fragments
     {
         private static readonly string TimeEntriesIdsArgument = "com.toggl.timer.time_entries_ids";
 
-        private EditGroupViewModel viewModel;
+        private EditTimeEntryGroupViewModel viewModel;
         private RecyclerView recyclerView;
-        private SimpleEditTimeEntryFragment editTimeEntryFragment;
         private RecyclerView.Adapter listAdapter;
 
         private IList<string> TimeEntryIds
@@ -55,7 +55,6 @@ namespace Toggl.Joey.UI.Fragments
         public override View OnCreateView (LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState)
         {
             var view = inflater.Inflate (Resource.Layout.EditGroupedTimeEntryFragment, container, false);
-            editTimeEntryFragment = (SimpleEditTimeEntryFragment) ChildFragmentManager.FindFragmentById (Resource.Id.TimeEntryEditChildFragment);
             HasOptionsMenu = true;
 
             recyclerView = view.FindViewById<RecyclerView> (Resource.Id.recyclerView);
@@ -69,51 +68,19 @@ namespace Toggl.Joey.UI.Fragments
         {
             base.OnViewCreated (view, savedInstanceState);
 
-            viewModel = new EditGroupViewModel (TimeEntryIds);
-            viewModel.OnIsLoadingChanged += OnModelLoaded;
+            viewModel = new EditTimeEntryGroupViewModel (TimeEntryIds.ToList ());
             await viewModel.Init ();
+
+            // Set adapter
+            listAdapter = new GroupedEditAdapter (viewModel);
+            (listAdapter as GroupedEditAdapter).HandleTapTimeEntry = HandleTimeEntryClick;
+            recyclerView.SetAdapter (listAdapter);
         }
 
         public override void OnDestroyView ()
         {
-            if (viewModel != null) {
-                // TimeEntry property must be nullified to
-                // stop event listeners on BaseEditTimeEntryFragment.
-                editTimeEntryFragment.TimeEntry = null;
-
-                viewModel.OnProjectListChanged -= OnProjectListChanged;
-                viewModel.OnIsLoadingChanged -= OnModelLoaded;
-                viewModel.Dispose ();
-                viewModel = null;
-            }
+            viewModel.Dispose ();
             base.OnDestroyView ();
-        }
-
-        private void OnModelLoaded (object sender, EventArgs e)
-        {
-            if (!viewModel.IsLoading) {
-                if (viewModel != null) {
-                    editTimeEntryFragment.TimeEntry = viewModel.Model;
-                    editTimeEntryFragment.OnPressedProjectSelector += OnProjectSelected;
-                    editTimeEntryFragment.OnPressedTagSelector += OnTagSelected;
-                    viewModel.OnProjectListChanged += OnProjectListChanged;
-
-                    // Set adapter
-                    listAdapter = new GroupedEditAdapter (viewModel.Model);
-                    (listAdapter as GroupedEditAdapter).HandleTapTimeEntry = HandleTimeEntryClick;
-                    recyclerView.SetAdapter (listAdapter);
-                } else {
-                    Activity.Finish ();
-                }
-            }
-        }
-
-        private void OnProjectListChanged (object sender, EventArgs e)
-        {
-            if (listAdapter != null) {
-                // Refresh adapter
-                listAdapter.NotifyDataSetChanged ();
-            }
         }
 
         private void HandleTimeEntryClick (TimeEntryData timeEntry)
@@ -125,10 +92,6 @@ namespace Toggl.Joey.UI.Fragments
 
         private void OnProjectSelected (object sender, EventArgs e)
         {
-            if (viewModel.Model == null) {
-                return;
-            }
-
             var intent = new Intent (Activity, typeof (ProjectListActivity));
             intent.PutStringArrayListExtra (ProjectListActivity.ExtraTimeEntriesIds, TimeEntryIds);
             StartActivity (intent);
@@ -136,10 +99,7 @@ namespace Toggl.Joey.UI.Fragments
 
         private void OnTagSelected (object sender, EventArgs e)
         {
-            if (viewModel.Model == null) {
-                return;
-            }
-            new ChooseTimeEntryTagsDialogFragment (viewModel.Model.Workspace.Id, viewModel.Model.TimeEntryList).Show (FragmentManager, "tags_dialog");
+            // new ChooseTimeEntryTagsDialogFragment (viewModel.Model.Workspace.Id, viewModel.Model.TimeEntryList).Show (FragmentManager, "tags_dialog");
         }
     }
 }

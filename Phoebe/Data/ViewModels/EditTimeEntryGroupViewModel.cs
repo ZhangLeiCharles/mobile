@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -16,17 +16,24 @@ using XPlatUtils;
 namespace Toggl.Phoebe.Data.ViewModels
 {
     [ImplementPropertyChanged]
-    public class EditTimeEntryViewModel : ViewModelBase, IVModel<TimeEntryModel>
+    public class EditTimeEntryGroupViewModel : ViewModelBase, IVModel<TimeEntryModel>
     {
         private TimeEntryTagCollectionView tagsView;
         private TimeEntryModel model;
-        private Guid timeEntryId;
         private Timer durationTimer;
+        private List<TimeEntryData> timeEntryList;
+        private List<string> timeEntryIds;
 
-        public EditTimeEntryViewModel (Guid timeEntryId)
+        public EditTimeEntryGroupViewModel (List<TimeEntryData> timeEntryList)
         {
-            this.timeEntryId = timeEntryId;
-            ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Edit Time Entry";
+            this.timeEntryList = timeEntryList;
+            ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Edit Grouped Time Entry";
+        }
+
+        public EditTimeEntryGroupViewModel (List<string> timeEntryIds)
+        {
+            this.timeEntryIds = timeEntryIds;
+            ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Edit Grouped Time Entry";
         }
 
         public async Task Init ()
@@ -36,12 +43,16 @@ namespace Toggl.Phoebe.Data.ViewModels
             durationTimer = new Timer ();
             durationTimer.Elapsed += DurationTimerCallback;
 
-            tagsView = new TimeEntryTagCollectionView (timeEntryId);
-            await tagsView.ReloadAsync ();
+            if (timeEntryList == null) {
+                timeEntryList = await GetTimeEntryDataList (timeEntryIds);
+            }
 
-            model = new TimeEntryModel (timeEntryId);
+            model = new TimeEntryModel (timeEntryList.Last ());
             model.PropertyChanged += OnPropertyChange;
             await model.LoadAsync ();
+
+            tagsView = new TimeEntryTagCollectionView (model.Id);
+            await tagsView.ReloadAsync ();
 
             UpdateView ();
 
@@ -61,8 +72,6 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         public bool IsLoading { get; set; }
 
-        public bool IsPremium { get; set; }
-
         public bool IsRunning { get; set; }
 
         public string Duration { get; set; }
@@ -78,8 +87,6 @@ namespace Toggl.Phoebe.Data.ViewModels
         public string Description { get; set; }
 
         public List<string> TagNames { get; set; }
-
-        public bool IsBillable { get; set; }
 
         public Guid WorkspaceId { get; set; }
 
@@ -163,9 +170,7 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         public async Task SaveModel ()
         {
-            model.IsBillable = IsBillable;
-            model.Description = Description;
-            await model.SaveAsync ();
+            // Save all models
         }
 
         private void OnPropertyChange (object sender, PropertyChangedEventArgs e)
@@ -180,15 +185,14 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         private void UpdateView ()
         {
-            StartDate = model.StartTime.ToLocalTime ();
+            StartDate = timeEntryList.FirstOrDefault ().StartTime.ToLocalTime ();
             StopDate = model.StopTime.HasValue ? model.StopTime.Value.ToLocalTime () : DateTime.UtcNow.ToLocalTime ();
             // TODO: check substring function for long times
-            Duration = TimeSpan.FromSeconds (model.GetDuration ().TotalSeconds).ToString ().Substring (0, 8);
+            var listDuration = GetTimeEntryListDuration (timeEntryList);
+            Duration = TimeSpan.FromSeconds (listDuration.TotalSeconds).ToString ().Substring (0, 8);
             Description = model.Description;
             ProjectName = model.Project != null ? model.Project.Name : string.Empty;
             TagNames = tagsView.TagNames;
-            IsBillable = model.IsBillable;
-            IsPremium = model.Workspace.IsPremium;
             WorkspaceId = model.Workspace.Id;
 
             if (model.Project != null) {
@@ -217,6 +221,34 @@ namespace Toggl.Phoebe.Data.ViewModels
             });
 
         }
+
+        #region Time Entry list utils
+
+        private async Task<List<TimeEntryData>> GetTimeEntryDataList (List<string> ids)
+        {
+            var store = ServiceContainer.Resolve<IDataStore> ();
+            var list = new List<TimeEntryData> (ids.Count);
+
+            foreach (var stringGuid in ids) {
+                var guid = new Guid (stringGuid);
+                var rows = await store.Table<TimeEntryData> ()
+                           .QueryAsync (r => r.Id == guid && r.DeletedAt == null);
+                var data = rows.FirstOrDefault ();
+                list.Add (data);
+            }
+            return list;
+        }
+
+        public TimeSpan GetTimeEntryListDuration (List<TimeEntryData> timeEntries)
+        {
+            TimeSpan duration = TimeSpan.Zero;
+            foreach (var item in timeEntries) {
+                duration += TimeEntryModel.GetDuration (item, Time.UtcNow);
+            }
+            return duration;
+        }
+
+        #endregion
     }
 }
 
