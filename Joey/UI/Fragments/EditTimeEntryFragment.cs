@@ -163,6 +163,8 @@ namespace Toggl.Joey.UI.Fragments
 
         public override void OnPause ()
         {
+            // Save Time entry state every time
+            // the fragment is paused.
             Task.Run (async () => await ViewModel.SaveModel ());
             base.OnPause ();
         }
@@ -192,12 +194,12 @@ namespace Toggl.Joey.UI.Fragments
 
         public void OnCreateNewTag (TagData newTagData)
         {
-            Console.WriteLine ("OnCreateNewTag");
+            ViewModel.AddTag (newTagData);
         }
 
         public void OnModifyTagList (List<TagData> newTagList)
         {
-            Console.WriteLine ("OnModifyTagList");
+            ViewModel.ChangeTagList (newTagList);
         }
 
         public void OnChangeDuration (TimeSpan newDuration)

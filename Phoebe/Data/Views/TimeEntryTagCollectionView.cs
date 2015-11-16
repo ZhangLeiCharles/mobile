@@ -9,7 +9,7 @@ using XPlatUtils;
 
 namespace Toggl.Phoebe.Data.Views
 {
-    public class TimeEntryTagCollectionView : ICollectionDataView<string>
+    public class TimeEntryTagCollectionView : ICollectionDataView<TagData>
     {
         private readonly Guid timeEntryId;
         private readonly HashSet<Guid> tagIds = new HashSet<Guid> ();

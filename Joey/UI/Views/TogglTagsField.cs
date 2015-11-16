@@ -15,7 +15,7 @@ namespace Toggl.Joey.UI.Views
     {
         const int TagMaxLength = 30;
 
-        private List<string> tagNames;
+        private List<string> tagNames = new List<string> ();
 
         public TogglTagsField (Context context) : base (context)
         {
@@ -38,7 +38,8 @@ namespace Toggl.Joey.UI.Views
             get {
                 return tagNames;
             } set {
-                tagNames = value;
+                tagNames.Clear ();
+                tagNames.AddRange (value);
                 DrawTags ();
             }
         }
@@ -58,6 +59,16 @@ namespace Toggl.Joey.UI.Views
 
             Click += OnClick;
             EditText.Click += OnClick;
+
+            // TODO: Another hack to make sure that
+            // tags defined when the view was inflated
+            // are drawn. In general, the xxxxFields
+            // give problems.
+            EditText.ViewAttachedToWindow += (sender, e) => {
+                if (tagNames.Count > 0) {
+                    DrawTags ();
+                }
+            };
         }
 
         private void OnClick (object obj, EventArgs args)

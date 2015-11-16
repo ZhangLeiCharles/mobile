@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Timers;
+using GalaSoft.MvvmLight;
 using PropertyChanged;
 using Toggl.Phoebe.Analytics;
 using Toggl.Phoebe.Data.DataObjects;
@@ -15,7 +16,7 @@ using XPlatUtils;
 namespace Toggl.Phoebe.Data.ViewModels
 {
     [ImplementPropertyChanged]
-    public class EditTimeEntryViewModel : IVModel<TimeEntryModel>
+    public class EditTimeEntryViewModel : ViewModelBase, IVModel<TimeEntryModel>
     {
         private TimeEntryTagCollectionView tagsView;
         private TimeEntryModel model;
@@ -104,14 +105,22 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         public async Task ChangeTagList (List<TagData> tagList)
         {
+            // Create tag list.
+            var dataStore = ServiceContainer.Resolve<IDataStore> ();
+            var existingTagRelations = new List<TimeEntryTagData> ();
+
+            var tags = await dataStore.Table<TimeEntryTagData> ()
+                       .QueryAsync (r => r.TimeEntryId == model.Id && r.DeletedAt == null);
+            existingTagRelations.AddRange (tags);
+
             // Delete unused tag relations:
-            var deleteTasks = tagsView.Data
-                              .Where (oldTag => tagList.All (newTag => newTag.Id != oldTag.Id))
-                              .Select (data => new TimeEntryTagModel (data).DeleteAsync ())
+            var deleteTasks = existingTagRelations
+                              .Where (oldTagRelation => tagList.All (newTag => newTag.Id != oldTagRelation.TagId))
+                              .Select (tagRelation => new TimeEntryTagModel (tagRelation).DeleteAsync ())
                               .ToList();
 
             // Create new tag relations:
-            var createTasks = tagsView.Data
+            var createTasks = tagList
                               .Where (newTag => tagsView.Data.All (oldTag => oldTag.Id != newTag.Id))
             .Select (data => new TimeEntryTagModel { TimeEntry = model, Tag = new TagModel (data)} .SaveAsync ())
             .ToList();
@@ -119,9 +128,13 @@ namespace Toggl.Phoebe.Data.ViewModels
             await Task.WhenAll (deleteTasks.Concat (createTasks));
 
             if (deleteTasks.Any<Task> () || createTasks.Any<Task> ()) {
-                //model.Touch ();
-                //await model.SaveAsync ();
+                model.Touch (); // why it needs to be called?
+                await model.SaveAsync ();
             }
+
+            // Update view!
+            await tagsView.ReloadAsync ();
+            RaisePropertyChanged (() => TagNames);
         }
 
         public async Task AddTag (TagData tagData)
@@ -130,8 +143,7 @@ namespace Toggl.Phoebe.Data.ViewModels
 
             // Check if the relation already exists before adding it
             var relations = await store.Table<TimeEntryTagData> ()
-                            .CountAsync (r => r.TimeEntryId == model.Id && r.TagId == tagData.Id && r.DeletedAt == null)
-                            .ConfigureAwait (false);
+                            .CountAsync (r => r.TimeEntryId == model.Id && r.TagId == tagData.Id && r.DeletedAt == null);
 
             if (relations > 0) {
                 var relationModel = new TimeEntryTagModel {
@@ -139,9 +151,13 @@ namespace Toggl.Phoebe.Data.ViewModels
                     Tag = new TagModel (tagData),
                 };
                 await relationModel.SaveAsync ();
-                //model.Touch ();
-                //await model.SaveAsync ();
+                model.Touch ();
+                await model.SaveAsync ();
             }
+
+            // Update view!
+            await tagsView.ReloadAsync ();
+            RaisePropertyChanged (() => TagNames);
         }
 
         public async Task SaveModel ()
