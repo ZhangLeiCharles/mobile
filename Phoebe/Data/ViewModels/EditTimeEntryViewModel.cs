@@ -139,21 +139,22 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         public async Task AddTag (TagData tagData)
         {
-            var store = ServiceContainer.Resolve<IDataStore>();
-
             // Check if the relation already exists before adding it
-            var relations = await store.Table<TimeEntryTagData> ()
+            var relations = await ServiceContainer.Resolve<IDataStore>().Table<TimeEntryTagData> ()
                             .CountAsync (r => r.TimeEntryId == model.Id && r.TagId == tagData.Id && r.DeletedAt == null);
-
             if (relations > 0) {
-                var relationModel = new TimeEntryTagModel {
-                    TimeEntry = model,
-                    Tag = new TagModel (tagData),
-                };
-                await relationModel.SaveAsync ();
-                model.Touch ();
-                await model.SaveAsync ();
+                return;
             }
+
+            // Add Tag relation.
+            var relationModel = new TimeEntryTagModel {
+                TimeEntry = model,
+                Tag = new TagModel (tagData),
+            };
+            await relationModel.SaveAsync ();
+            model.Touch ();
+            await model.SaveAsync ();
+
 
             // Update view!
             await tagsView.ReloadAsync ();
