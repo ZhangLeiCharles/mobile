@@ -133,7 +133,6 @@
     <Compile Include="UI\Utils\DateTimeExtensions.cs" />
     <Compile Include="Net\NetworkPresence.cs" />
     <Compile Include="UI\Fragments\FeedbackFragment.cs" />
-    <Compile Include="UI\Fragments\BaseEditTimeEntryFragment.cs" />
     <Compile Include="UI\Views\FadeDrawable.cs" />
     <Compile Include="UI\Views\FadeLinearLayout.cs" />
     <Compile Include="UI\Views\PieChart.cs" />
