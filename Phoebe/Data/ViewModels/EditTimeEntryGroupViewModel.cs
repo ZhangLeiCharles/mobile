@@ -9,8 +9,8 @@ using PropertyChanged;
 using Toggl.Phoebe.Analytics;
 using Toggl.Phoebe.Data.DataObjects;
 using Toggl.Phoebe.Data.Models;
+using Toggl.Phoebe.Data.Utils;
 using Toggl.Phoebe.Data.ViewModels;
-using Toggl.Phoebe.Data.Views;
 using XPlatUtils;
 
 namespace Toggl.Phoebe.Data.ViewModels
@@ -18,7 +18,6 @@ namespace Toggl.Phoebe.Data.ViewModels
     [ImplementPropertyChanged]
     public class EditTimeEntryGroupViewModel : ViewModelBase, IVModel<TimeEntryModel>
     {
-        private TimeEntryTagCollectionView tagsView;
         private TimeEntryModel model;
         private Timer durationTimer;
         private List<TimeEntryData> timeEntryList;
@@ -50,9 +49,6 @@ namespace Toggl.Phoebe.Data.ViewModels
             model = new TimeEntryModel (timeEntryList.Last ());
             model.PropertyChanged += OnPropertyChange;
             await model.LoadAsync ();
-
-            tagsView = new TimeEntryTagCollectionView (model.Id);
-            await tagsView.ReloadAsync ();
 
             UpdateView ();
 
@@ -86,91 +82,26 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         public string Description { get; set; }
 
-        public List<string> TagNames { get; set; }
-
         public Guid WorkspaceId { get; set; }
+
+        public int ProjectColor { get; set; }
+
+        public ObservableRangeCollection<TimeEntryData> TimeEntryCollection  { get; set; }
 
         #endregion
 
-        public void ChangeTimeEntryDuration (TimeSpan newDuration)
-        {
-            model.SetDuration (newDuration);
-            ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Change Duration";
-        }
-
-        public void ChangeTimeEntryStart (TimeSpan diffTime)
-        {
-            model.StartTime += diffTime;
-            ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Change Start Time";
-        }
-
-        public void ChangeTimeEntryStop (TimeSpan diffTime)
-        {
-            model.StopTime += diffTime;
-            ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Change Stop Time";
-        }
-
-        public async Task ChangeTagList (List<TagData> tagList)
-        {
-            // Create tag list.
-            var dataStore = ServiceContainer.Resolve<IDataStore> ();
-            var existingTagRelations = new List<TimeEntryTagData> ();
-
-            var tags = await dataStore.Table<TimeEntryTagData> ()
-                       .QueryAsync (r => r.TimeEntryId == model.Id && r.DeletedAt == null);
-            existingTagRelations.AddRange (tags);
-
-            // Delete unused tag relations:
-            var deleteTasks = existingTagRelations
-                              .Where (oldTagRelation => tagList.All (newTag => newTag.Id != oldTagRelation.TagId))
-                              .Select (tagRelation => new TimeEntryTagModel (tagRelation).DeleteAsync ())
-                              .ToList();
-
-            // Create new tag relations:
-            var createTasks = tagList
-                              .Where (newTag => tagsView.Data.All (oldTag => oldTag.Id != newTag.Id))
-            .Select (data => new TimeEntryTagModel { TimeEntry = model, Tag = new TagModel (data)} .SaveAsync ())
-            .ToList();
-
-            await Task.WhenAll (deleteTasks.Concat (createTasks));
-
-            if (deleteTasks.Any<Task> () || createTasks.Any<Task> ()) {
-                model.Touch (); // why it needs to be called?
-                await model.SaveAsync ();
-            }
-
-            // Update view!
-            await tagsView.ReloadAsync ();
-            RaisePropertyChanged (() => TagNames);
-        }
-
-        public async Task AddTag (TagData tagData)
-        {
-            // Check if the relation already exists before adding it
-            var relations = await ServiceContainer.Resolve<IDataStore>().Table<TimeEntryTagData> ()
-                            .CountAsync (r => r.TimeEntryId == model.Id && r.TagId == tagData.Id && r.DeletedAt == null);
-            if (relations > 0) {
-                return;
-            }
-
-            // Add Tag relation.
-            var relationModel = new TimeEntryTagModel {
-                TimeEntry = model,
-                Tag = new TagModel (tagData),
-            };
-            await relationModel.SaveAsync ();
-            model.Touch ();
-            await model.SaveAsync ();
-
-
-            // Update view!
-            await tagsView.ReloadAsync ();
-            RaisePropertyChanged (() => TagNames);
-        }
-
         public async Task SaveModel ()
         {
-            // Save all models
+            var dataStore = ServiceContainer.Resolve<IDataStore> ();
+            var saveTasks = new List<Task> ();
+
+            foreach (var item in timeEntryList) {
+                item.Description = Description;
+                Model<TimeEntryData>.MarkDirty (item);
+                saveTasks.Add (dataStore.PutAsync (item));
+            }
+
+            await Task.WhenAll (saveTasks);
         }
 
         private void OnPropertyChange (object sender, PropertyChangedEventArgs e)
@@ -192,7 +123,7 @@ namespace Toggl.Phoebe.Data.ViewModels
             Duration = TimeSpan.FromSeconds (listDuration.TotalSeconds).ToString ().Substring (0, 8);
             Description = model.Description;
             ProjectName = model.Project != null ? model.Project.Name : string.Empty;
-            TagNames = tagsView.TagNames;
+            ProjectColor = model.Project != null ? model.Project.Color : 0;
             WorkspaceId = model.Workspace.Id;
 
             if (model.Project != null) {
@@ -208,6 +139,13 @@ namespace Toggl.Phoebe.Data.ViewModels
                 IsRunning = false;
                 durationTimer.Stop ();
             }
+
+            if (TimeEntryCollection == null) {
+                TimeEntryCollection = new ObservableRangeCollection<TimeEntryData> ();
+            } else {
+                TimeEntryCollection.Clear ();
+            }
+            TimeEntryCollection.AddRange (timeEntryList);
         }
 
         private void DurationTimerCallback (object sender, ElapsedEventArgs e)
@@ -219,7 +157,6 @@ namespace Toggl.Phoebe.Data.ViewModels
             ServiceContainer.Resolve<IPlatformUtils> ().DispatchOnUIThread (() => {
                 Duration = TimeSpan.FromSeconds (duration.TotalSeconds).ToString ().Substring (0, 8);
             });
-
         }
 
         #region Time Entry list utils
