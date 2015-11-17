@@ -32,7 +32,7 @@ namespace Toggl.Joey.UI.Fragments
         private Binding<DateTime, string> startTimeBinding, stopTimeBinding;
         private Binding<List<string>, List<string>> tagBinding;
         private Binding<bool, ViewStates> isPremiumBinding;
-        private Binding<bool, bool> isBillableBinding, billableBinding;
+        private Binding<bool, bool> isBillableBinding, billableBinding, isRunningBinding;
 
         public EditTimeEntryViewModel ViewModel { get; private set; }
         public TextView DurationTextView { get; private set; }
@@ -42,6 +42,7 @@ namespace Toggl.Joey.UI.Fragments
         public TogglField ProjectField { get; private set; }
         public TogglField DescriptionField { get; private set; }
         public TogglTagsField TagsField { get; private set; }
+        private TextView stopTimeEditLabel;
         private ActionBar toolbar;
 
         private Guid TimeEntryId
@@ -93,6 +94,7 @@ namespace Toggl.Joey.UI.Fragments
 
             StartTimeEditText = view.FindViewById<EditText> (Resource.Id.StartTimeEditText).SetFont (Font.Roboto);
             StopTimeEditText = view.FindViewById<EditText> (Resource.Id.StopTimeEditText).SetFont (Font.Roboto);
+            stopTimeEditLabel = view.FindViewById<TextView> (Resource.Id.StopTimeEditLabel);
 
             DescriptionField = view.FindViewById<TogglField> (Resource.Id.Description)
                                .DestroyAssistView().DestroyArrow()
@@ -147,6 +149,10 @@ namespace Toggl.Joey.UI.Fragments
             tagBinding = this.SetBinding (() => ViewModel.TagNames, () => TagsField.TagNames);
             descriptionBinding = this.SetBinding (() => ViewModel.Description, () => DescriptionField.TextField.Text, BindingMode.TwoWay);
             isPremiumBinding = this.SetBinding (() => ViewModel.IsPremium, () => BillableCheckBox.Visibility).ConvertSourceToTarget (isVisible => isVisible ? ViewStates.Visible : ViewStates.Gone);
+            isRunningBinding = this.SetBinding (() => ViewModel.IsRunning).WhenSourceChanges (() => {
+                StopTimeEditText.Visibility = ViewModel.IsRunning ? ViewStates.Gone : ViewStates.Visible;
+                stopTimeEditLabel.Visibility = ViewModel.IsRunning ? ViewStates.Gone : ViewStates.Visible;
+            });
             isBillableBinding = this.SetBinding (() => ViewModel.IsBillable, () => BillableCheckBox.Checked, BindingMode.TwoWay);
             billableBinding = this.SetBinding (() => ViewModel.IsBillable)
             .WhenSourceChanges (() => {

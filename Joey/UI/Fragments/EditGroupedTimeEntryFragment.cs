@@ -31,6 +31,7 @@ namespace Toggl.Joey.UI.Fragments
         // to avoid weak references to be removed
         private Binding<string, string> durationBinding, projectBinding, clientBinding, descriptionBinding;
         private Binding<DateTime, string> startTimeBinding, stopTimeBinding;
+        private Binding<bool, bool> isRunningBinding;
 
         public EditTimeEntryGroupViewModel ViewModel { get; private set; }
         public TextView DurationTextView { get; private set; }
@@ -39,6 +40,7 @@ namespace Toggl.Joey.UI.Fragments
         public TogglField ProjectField { get; private set; }
         public TogglField DescriptionField { get; private set; }
 
+        private TextView stopTimeEditLabel;
         private ActionBar toolbar;
         private ListView timeEntriesListView;
 
@@ -87,6 +89,7 @@ namespace Toggl.Joey.UI.Fragments
 
             StartTimeEditText = view.FindViewById<EditText> (Resource.Id.StartTimeEditText).SetFont (Font.Roboto);
             StopTimeEditText = view.FindViewById<EditText> (Resource.Id.StopTimeEditText).SetFont (Font.Roboto);
+            stopTimeEditLabel = view.FindViewById<TextView> (Resource.Id.StopTimeEditLabel);
 
             DescriptionField = view.FindViewById<TogglField> (Resource.Id.Description)
                                .DestroyAssistView().DestroyArrow()
@@ -118,7 +121,10 @@ namespace Toggl.Joey.UI.Fragments
             projectBinding = this.SetBinding (() => ViewModel.ProjectName, () => ProjectField.TextField.Text);
             clientBinding = this.SetBinding (() => ViewModel.ClientName, () => ProjectField.AssistViewTitle);
             descriptionBinding = this.SetBinding (() => ViewModel.Description, () => DescriptionField.TextField.Text, BindingMode.TwoWay);
-
+            isRunningBinding = this.SetBinding (() => ViewModel.IsRunning).WhenSourceChanges (() => {
+                StopTimeEditText.Visibility = ViewModel.IsRunning ? ViewStates.Gone : ViewStates.Visible;
+                stopTimeEditLabel.Visibility = ViewModel.IsRunning ? ViewStates.Gone : ViewStates.Visible;
+            });
             // Set adapter using Mvvm light utils.
             timeEntriesListView.Adapter = ViewModel.TimeEntryCollection.GetAdapter (GetTimeEntryView);
             timeEntriesListView.ItemClick += (sender, e) => HandleTimeEntryClick (ViewModel.TimeEntryCollection [e.Position]);
