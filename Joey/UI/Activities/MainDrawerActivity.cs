@@ -198,22 +198,8 @@ namespace Toggl.Joey.UI.Activities
             return DrawerToggle.OnOptionsItemSelected (item) || base.OnOptionsItemSelected (item);
         }
 
-        protected override void OnStart ()
-        {
-            base.OnStart ();
-            Timer.OnStart ();
-        }
-
-        protected override void OnStop ()
-        {
-            base.OnStop ();
-            Timer.OnStop ();
-        }
-
         protected override void OnDestroy ()
         {
-            Timer.OnDestroy (this);
-
             var bus = ServiceContainer.Resolve<MessageBus> ();
 
             if (drawerSyncStarted != null) {
