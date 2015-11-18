@@ -215,7 +215,6 @@ namespace Toggl.Phoebe.Data.ViewModels
             ServiceContainer.Resolve<IPlatformUtils> ().DispatchOnUIThread (() => {
                 Duration = TimeSpan.FromSeconds (duration.TotalSeconds).ToString ().Substring (0, 8);
             });
-
         }
     }
 }
