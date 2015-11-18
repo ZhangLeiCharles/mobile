@@ -11,7 +11,7 @@ namespace Toggl.Phoebe.Tests
     [TestFixture]
     public class UpgradeManagerTest : Test
     {
-        private PlatformInfo platformInfo;
+        private PlatformUtils platformUtils;
         private SettingStore settingStore;
         private UpgradeManger upgradeManager;
 
@@ -19,7 +19,7 @@ namespace Toggl.Phoebe.Tests
         {
             base.SetUp ();
 
-            ServiceContainer.Register<IPlatformInfo> (platformInfo = new PlatformInfo ());
+            ServiceContainer.Register<IPlatformUtils> (platformUtils = new PlatformUtils ());
             ServiceContainer.Register<ISettingsStore> (settingStore = new SettingStore ());
             ServiceContainer.Register<ExperimentManager> (new ExperimentManager ());
             upgradeManager = new UpgradeManger ();
@@ -29,7 +29,7 @@ namespace Toggl.Phoebe.Tests
         public void TestAnyUpgrade ()
         {
             RunAsync (async delegate {
-                platformInfo.AppVersion = "1.0.1";
+                platformUtils.AppVersion = "1.0.1";
                 settingStore.SyncLastRun = new DateTime (2014, 1, 2, 10, 0, 0, DateTimeKind.Utc);
 
                 var workspaceData = await DataStore.PutAsync (new WorkspaceData () {
@@ -72,7 +72,7 @@ namespace Toggl.Phoebe.Tests
 
                 upgradeManager.TryUpgrade ();
 
-                Assert.AreEqual (platformInfo.AppVersion, settingStore.LastAppVersion);
+                Assert.AreEqual (platformUtils.AppVersion, settingStore.LastAppVersion);
                 Assert.IsNull (settingStore.SyncLastRun);
 
                 workspaceData = (await DataStore.Table<WorkspaceData> ().QueryAsync (r => r.Id == workspaceData.Id)).Single ();
@@ -87,13 +87,15 @@ namespace Toggl.Phoebe.Tests
             });
         }
 
-        private class PlatformInfo : IPlatformInfo
+        private class PlatformUtils : IPlatformUtils
         {
             public string AppIdentifier { get; set; }
 
             public string AppVersion { get; set; }
 
             public bool IsWidgetAvailable { get; set; }
+
+            public void DispatchOnUIThread (Action action) {}
 
         }
 
