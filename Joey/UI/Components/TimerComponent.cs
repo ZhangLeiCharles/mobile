@@ -69,21 +69,20 @@ namespace Toggl.Joey.UI.Components
             AddManualEntry = Root.FindViewById<ImageButton> (Resource.Id.AddManuallyButton);
 
             AddManualEntry.Click += CreateTimeEntryManually;
-            //IsRunning = false;
+            IsRunning = false;
         }
 
         public void SetViewModel (LogTimeEntriesViewModel viewModel)
         {
-            var emptyDescription = activity.ApplicationContext.Resources.GetText (Resource.String.TimerComponentNoDescription);
-            var emptyProject = activity.ApplicationContext.Resources.GetText (Resource.String.TimerComponentNoProject);
-
             ViewModel = viewModel;
 
             // TODO: investigate why WhenSourceChanges doesn't work. :(
             isRunningBinding = this.SetBinding (() => ViewModel.IsTimeEntryRunning, () => IsRunning);
             durationBinding = this.SetBinding (() => ViewModel.Duration, () => DurationTextView.Text);
-            descBinding = this.SetBinding (() => ViewModel.Description, () => DescriptionTextView.Text).ConvertSourceToTarget (desc => desc != string.Empty ? desc : emptyDescription);
-            projectBinding = this.SetBinding (() => ViewModel.ProjectName, () => ProjectTextView.Text).ConvertSourceToTarget (proj => proj != string.Empty ? proj : emptyProject);
+            descBinding = this.SetBinding (() => ViewModel.Description, () => DescriptionTextView.Text)
+                          .ConvertSourceToTarget (desc => desc != string.Empty ? desc : activity.ApplicationContext.Resources.GetText (Resource.String.TimerComponentNoDescription));
+            projectBinding = this.SetBinding (() => ViewModel.ProjectName, () => ProjectTextView.Text)
+                             .ConvertSourceToTarget (proj => proj != string.Empty ? proj : activity.ApplicationContext.Resources.GetText (Resource.String.TimerComponentNoProject));
         }
 
         public void DetachBindind ()

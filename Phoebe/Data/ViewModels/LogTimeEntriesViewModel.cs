@@ -119,11 +119,7 @@ namespace Toggl.Phoebe.Data.ViewModels
         {
             var data = timeEntryManager.Active;
             if (data != null) {
-                if (model == null) {
-                    model = new TimeEntryModel (data);
-                } else {
-                    model.Data = data;
-                }
+                model = new TimeEntryModel (data);
                 await model.LoadAsync ();
                 UpdateView ();
             }
