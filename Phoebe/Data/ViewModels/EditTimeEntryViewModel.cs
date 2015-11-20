@@ -32,7 +32,6 @@ namespace Toggl.Phoebe.Data.ViewModels
         public async Task Init ()
         {
             IsLoading  = true;
-
             durationTimer = new Timer ();
             durationTimer.Elapsed += DurationTimerCallback;
 
@@ -44,7 +43,6 @@ namespace Toggl.Phoebe.Data.ViewModels
             await model.LoadAsync ();
 
             UpdateView ();
-
             IsLoading = false;
         }
 
@@ -64,6 +62,8 @@ namespace Toggl.Phoebe.Data.ViewModels
         public bool IsPremium { get; set; }
 
         public bool IsRunning { get; set; }
+
+        public bool IsManual { get; set; }
 
         public string Duration { get; set; }
 
@@ -163,6 +163,10 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         public async Task SaveModel ()
         {
+            if (IsManual) {
+                return;
+            }
+
             model.IsBillable = IsBillable;
             model.Description = Description;
             await model.SaveAsync ();
@@ -180,7 +184,7 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         private void UpdateView ()
         {
-            StartDate = model.StartTime.ToLocalTime ();
+            StartDate = model.StartTime == DateTime.MinValue ? DateTime.UtcNow.AddMinutes (-1).ToLocalTime () : model.StartTime.ToLocalTime ();
             StopDate = model.StopTime.HasValue ? model.StopTime.Value.ToLocalTime () : DateTime.UtcNow.ToLocalTime ();
             // TODO: check substring function for long times
             Duration = TimeSpan.FromSeconds (model.GetDuration ().TotalSeconds).ToString ().Substring (0, 8);
@@ -190,6 +194,7 @@ namespace Toggl.Phoebe.Data.ViewModels
             IsBillable = model.IsBillable;
             IsPremium = model.Workspace.IsPremium;
             WorkspaceId = model.Workspace.Id;
+            IsManual = model.State == TimeEntryState.New;
 
             if (model.Project != null) {
                 if (model.Project.Client != null) {

@@ -32,7 +32,7 @@ namespace Toggl.Joey.UI.Fragments
         private Binding<DateTime, string> startTimeBinding, stopTimeBinding;
         private Binding<List<string>, List<string>> tagBinding;
         private Binding<bool, ViewStates> isPremiumBinding;
-        private Binding<bool, bool> isBillableBinding, billableBinding, isRunningBinding;
+        private Binding<bool, bool> isBillableBinding, billableBinding, isRunningBinding, saveMenuBinding;
 
         public EditTimeEntryViewModel ViewModel { get; private set; }
         public TextView DurationTextView { get; private set; }
@@ -42,6 +42,8 @@ namespace Toggl.Joey.UI.Fragments
         public TogglField ProjectField { get; private set; }
         public TogglField DescriptionField { get; private set; }
         public TogglTagsField TagsField { get; private set; }
+        public IMenuItem SaveMenuItem { get; private set; }
+
         private TextView stopTimeEditLabel;
         private ActionBar toolbar;
 
@@ -159,6 +161,12 @@ namespace Toggl.Joey.UI.Fragments
                 var label = ViewModel.IsBillable ? GetString (Resource.String.CurrentTimeEntryEditBillableChecked) : GetString (Resource.String.CurrentTimeEntryEditBillableUnchecked);
                 BillableCheckBox.Text = label;
             });
+            saveMenuBinding = this.SetBinding (() => ViewModel.IsManual)
+            .WhenSourceChanges (() => {
+                if (SaveMenuItem != null) {
+                    SaveMenuItem.SetVisible (ViewModel.IsManual);
+                }
+            });
         }
 
         public override void OnDestroyView ()
@@ -213,8 +221,19 @@ namespace Toggl.Joey.UI.Fragments
             ViewModel.ChangeTimeEntryDuration (newDuration);
         }
 
+        public override void OnCreateOptionsMenu (IMenu menu, MenuInflater inflater)
+        {
+            inflater.Inflate (Resource.Menu.SaveItemMenu, menu);
+            SaveMenuItem = menu.FindItem (Resource.Id.saveItem);
+            SaveMenuItem.SetVisible (ViewModel.IsManual);
+        }
+
         public override bool OnOptionsItemSelected (IMenuItem item)
         {
+            if (item == saveMenuBinding) {
+                Console.WriteLine ("Save entry!");
+            }
+
             Activity.OnBackPressed ();
             return base.OnOptionsItemSelected (item);
         }
