@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using Android.Content;
-using Android.Views;
+﻿using Android.Views;
 using Android.Widget;
 using GalaSoft.MvvmLight.Helpers;
-using Toggl.Joey.UI.Activities;
 using Toggl.Joey.UI.Utils;
 using Toggl.Joey.UI.Views;
-using Toggl.Phoebe.Data.Models;
 using Toggl.Phoebe.Data.ViewModels;
 using Activity = Android.Support.V4.App.FragmentActivity;
 using Fragment = Android.Support.V4.App.Fragment;
@@ -40,7 +35,6 @@ namespace Toggl.Joey.UI.Components
                 return isRunning;
             } set {
                 isRunning = value;
-                AddManualEntry.Visibility = isRunning ? ViewStates.Gone : ViewStates.Visible;
                 TimerTitleTextView.Visibility = isRunning ? ViewStates.Gone : ViewStates.Visible;
                 ProjectTextView.Visibility = isRunning ? ViewStates.Visible : ViewStates.Gone;
                 DescriptionTextView.Visibility = isRunning ? ViewStates.Visible : ViewStates.Gone;
@@ -66,9 +60,7 @@ namespace Toggl.Joey.UI.Components
             TimerTitleTextView = Root.FindViewById<TextView> (Resource.Id.TimerTitleTextView);
             ProjectTextView = Root.FindViewById<TextView> (Resource.Id.ProjectTextView);
             DescriptionTextView = Root.FindViewById<TextView> (Resource.Id.DescriptionTextView).SetFont (Font.RobotoLight);
-            AddManualEntry = Root.FindViewById<ImageButton> (Resource.Id.AddManuallyButton);
 
-            AddManualEntry.Click += CreateTimeEntryManually;
             IsRunning = false;
         }
 
@@ -91,18 +83,6 @@ namespace Toggl.Joey.UI.Components
             durationBinding.Detach ();
             descBinding.Detach ();
             projectBinding.Detach ();
-        }
-
-        private void CreateTimeEntryManually (object sender, EventArgs e)
-        {
-            OpenTimeEntryEdit (new TimeEntryModel());
-        }
-
-        private void OpenTimeEntryEdit (ITimeEntryModel model)
-        {
-            var i = new Intent (activity, typeof (EditTimeEntryActivity));
-            i.PutStringArrayListExtra (EditTimeEntryActivity.ExtraGroupedTimeEntriesGuids, new List<string> {model.Id.ToString ()});
-            activity.StartActivity (i);
         }
     }
 }

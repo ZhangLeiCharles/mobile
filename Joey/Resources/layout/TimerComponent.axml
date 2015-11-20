@@ -48,11 +48,4 @@
         android:fontFamily="sans-serif-light"
         android:layout_gravity="right"
         android:gravity="center" />
-    <ImageButton
-        android:id="@+id/AddManuallyButton"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:background="@drawable/buttonnoframe"
-        android:src="@drawable/icmanualmode"
-        android:layout_gravity="right" />
 </FrameLayout>

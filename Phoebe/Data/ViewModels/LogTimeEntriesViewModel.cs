@@ -84,11 +84,11 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         #endregion
 
-        public async Task StartStopTimeEntry ()
+        public async Task<TimeEntryData> StartStopTimeEntry ()
         {
             // Protect from double clicks
             if (IsProcessingAction) {
-                return;
+                return model.Data;
             }
 
             if (model.State == TimeEntryState.Running) {
@@ -98,6 +98,13 @@ namespace Toggl.Phoebe.Data.ViewModels
             }
 
             IsProcessingAction = false;
+
+            return model.Data;
+        }
+
+        public TimeEntryData GetActiveTimeEntry ()
+        {
+            return model.Data;
         }
 
         private async void OnActiveTimeEntryManagerPropertyChanged (object sender, PropertyChangedEventArgs args)

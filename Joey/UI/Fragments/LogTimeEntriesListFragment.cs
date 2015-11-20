@@ -37,14 +37,14 @@ namespace Toggl.Joey.UI.Fragments
         private ItemTouchListener itemTouchListener;
 
         // binding references
-        private Binding<bool, bool> hasMoreBinding;
+        private Binding<bool, bool> hasMoreBinding, newMenuBinding;
         private Binding<TimeEntriesCollectionView, TimeEntriesCollectionView> collectionBinding;
         private Binding<bool, FABButtonState> fabBinding;
 
         #region Binding objects and properties.
 
         public LogTimeEntriesViewModel ViewModel { get; set;}
-
+        public IMenuItem AddNewMenuItem { get; private set; }
         public StartStopFab StartStopBtn { get; private set;}
 
         #endregion
@@ -63,6 +63,8 @@ namespace Toggl.Joey.UI.Fragments
             timerComponent = ((MainDrawerActivity)Activity).Timer; // TODO: a better way to do this?
 
             SetupRecyclerView ();
+            HasOptionsMenu = true;
+
             return view;
         }
 
@@ -79,6 +81,13 @@ namespace Toggl.Joey.UI.Fragments
             });
             fabBinding = this.SetBinding (() => ViewModel.IsTimeEntryRunning, () => StartStopBtn.ButtonAction)
                          .ConvertSourceToTarget (isRunning => isRunning ? FABButtonState.Stop : FABButtonState.Start);
+
+            newMenuBinding = this.SetBinding (() => ViewModel.IsTimeEntryRunning)
+            .WhenSourceChanges (() => {
+                if (AddNewMenuItem != null) {
+                    AddNewMenuItem.SetVisible (!ViewModel.IsTimeEntryRunning);
+                }
+            });
 
             // Pass ViewModel to TimerComponent.
             timerComponent.SetViewModel (ViewModel);
@@ -152,6 +161,22 @@ namespace Toggl.Joey.UI.Fragments
 
             recyclerView.Visibility = ViewModel.HasMore ? ViewStates.Visible : ViewStates.Gone;
             emptyMessageView.Visibility = ViewModel.HasMore ? ViewStates.Gone : ViewStates.Visible;
+        }
+
+        public override void OnCreateOptionsMenu (IMenu menu, MenuInflater inflater)
+        {
+            inflater.Inflate (Resource.Menu.SaveItemMenu, menu);
+            AddNewMenuItem = menu.FindItem (Resource.Id.saveItem);
+            AddNewMenuItem.SetVisible (!ViewModel.IsTimeEntryRunning);
+        }
+
+        public override bool OnOptionsItemSelected (IMenuItem item)
+        {
+            var i = new Intent (Activity, typeof (EditTimeEntryActivity));
+            i.PutStringArrayListExtra (EditTimeEntryActivity.ExtraGroupedTimeEntriesGuids, new List<string> { ViewModel.GetActiveTimeEntry ().Id.ToString ()});
+            Activity.StartActivity (i);
+
+            return base.OnOptionsItemSelected (item);
         }
 
         #region IDismissListener implementation
