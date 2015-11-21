@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using Android.App;
+﻿using Android.App;
 using Android.Content.PM;
 using Android.OS;
 using Toggl.Joey.UI.Fragments;
@@ -15,7 +14,6 @@ namespace Toggl.Joey.UI.Activities
     public class ProjectListActivity : BaseActivity
     {
         private static readonly string fragmentTag = "projectlist_fragment";
-        public static readonly string ExtraTimeEntriesIds = "com.toggl.timer.time_entries_ids";
 
         protected override void OnCreateActivity (Bundle state)
         {
@@ -31,8 +29,8 @@ namespace Toggl.Joey.UI.Activities
                     Finish ();
                 }
 
-                var extraGuids = extras.GetStringArrayList (ExtraTimeEntriesIds);
-                fragment = ProjectListFragment.NewInstance (extraGuids);
+                var workspaceId = extras.GetString (BaseActivity.IntentWorkspaceIdArgument);
+                fragment = ProjectListFragment.NewInstance (workspaceId);
                 FragmentManager.BeginTransaction ()
                 .Add (Resource.Id.ProjectListActivityLayout, fragment, fragmentTag)
                 .Commit ();
