@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using PropertyChanged;
 using Toggl.Phoebe.Analytics;
 using Toggl.Phoebe.Data.DataObjects;
 using Toggl.Phoebe.Data.Models;
-using Toggl.Phoebe.Data.Utils;
 using Toggl.Phoebe.Net;
 using XPlatUtils;
 
@@ -17,11 +15,10 @@ namespace Toggl.Phoebe.Data.ViewModels
         private ProjectModel model;
         private WorkspaceModel workspaceModel;
         private Guid workspaceId;
-        private List<TimeEntryData> timeEntryList;
 
-        public NewProjectViewModel (List<TimeEntryData> timeEntryList)
+        public NewProjectViewModel (Guid workspaceId)
         {
-            this.timeEntryList = timeEntryList;
+            this.workspaceId = workspaceId;
             ServiceContainer.Resolve<ITracker> ().CurrentScreen = "New Project";
         }
 
@@ -41,11 +38,12 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         public string ClientName { get; set; }
 
+        public Guid ProjectId {  get { return model.Id; } } // TODO: not good :(
+
         public async Task Init ()
         {
             IsLoading = true;
 
-            workspaceId = timeEntryList[0].WorkspaceId;
             workspaceModel = new WorkspaceModel (workspaceId);
             await workspaceModel.LoadAsync ();
 
@@ -89,23 +87,15 @@ namespace Toggl.Phoebe.Data.ViewModels
 
             // Create an extra model for Project / User relationship
             var userData = ServiceContainer.Resolve<AuthManager> ().User;
-            var userId = userData != null ? userData.Id : (Guid?)null;
 
-            if (userId.HasValue) {
-                var projectUserModel = new ProjectUserModel ();
-                projectUserModel.Project = model;
-                projectUserModel.User = new UserModel (userId.Value);
-                await projectUserModel.SaveAsync ();
-            }
+            var projectUserModel = new ProjectUserModel ();
+            projectUserModel.Project = model;
+            projectUserModel.User = new UserModel (userData);
 
-            // Update entry list.
-            var timeEntryGroup = new TimeEntryGroup (timeEntryList);
-            timeEntryGroup.Project = model;
-            timeEntryGroup.Workspace = workspaceModel;
-            await timeEntryGroup.SaveAsync ();
+            // Save relationship.
+            await projectUserModel.SaveAsync ();
 
             IsSaving = false;
-
             return SaveProjectResult.SaveOk;
         }
 
@@ -114,7 +104,6 @@ namespace Toggl.Phoebe.Data.ViewModels
             var dataStore = ServiceContainer.Resolve<IDataStore> ();
             Guid clientId = (model.Client == null) ? Guid.Empty : model.Client.Id;
             var existWithName = await dataStore.Table<ProjectData>().ExistWithNameAsync (projectName, clientId);
-
             return existWithName;
         }
 

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using Android.App;
 using Android.Content;
 using Android.OS;
@@ -20,11 +19,10 @@ namespace Toggl.Joey.UI.Fragments
 {
     public class NewProjectFragment : Fragment, IOnClientSelectedListener
     {
+        private static readonly string WorkspaceIdArgument = "workspace_id_param";
         public static readonly int ClientSelectedRequestCode = 1;
 
         private ActionBar Toolbar;
-        private List<TimeEntryData> timeEntryList;
-
         public TogglField ProjectBit { get; private set; }
         public TogglField SelectClientBit { get; private set; }
         public ColorPickerRecyclerView ColorPicker { get; private set; }
@@ -37,13 +35,12 @@ namespace Toggl.Joey.UI.Fragments
         private Binding<string, string> nameBinding;
         private Binding<string, string> clientBinding;
 
-        private List<TimeEntryData> TimeEntryList
+        private Guid WorkspaceId
         {
             get {
-                if (timeEntryList == null)
-                    timeEntryList = BaseActivity.GetDataFromIntent <List<TimeEntryData>>
-                                    (Activity.Intent, NewProjectActivity.ExtraTimeEntryDataListId);
-                return timeEntryList;
+                Guid id;
+                Guid.TryParse (Arguments.GetString (WorkspaceIdArgument), out id);
+                return id;
             }
         }
 
@@ -55,9 +52,15 @@ namespace Toggl.Joey.UI.Fragments
         {
         }
 
-        public static NewProjectFragment NewInstance ()
+        public static NewProjectFragment NewInstance (string workspaceId)
         {
-            return new NewProjectFragment ();
+            var fragment = new NewProjectFragment ();
+
+            var args = new Bundle ();
+            args.PutString (WorkspaceIdArgument, workspaceId);
+            fragment.Arguments = args;
+
+            return fragment;
         }
 
         public override View OnCreateView (LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState)
@@ -92,22 +95,11 @@ namespace Toggl.Joey.UI.Fragments
         {
             base.OnViewCreated (view, savedInstanceState);
 
-            ViewModel = new NewProjectViewModel (TimeEntryList);
+            ViewModel = new NewProjectViewModel (WorkspaceId);
 
-            clientBinding = this.SetBinding (
-                                () => ViewModel.ClientName,
-                                () => SelectClientBit.TextField.Text);
-
-            nameBinding = this.SetBinding (
-                              () => ViewModel.ProjectName,
-                              () => ProjectBit.TextField.Text,
-                              BindingMode.TwoWay);
-
-            colorBinding = this.SetBinding (
-                               () => ViewModel.ProjectColor,
-                               () => ColorPicker.Adapter.SelectedColor,
-                               BindingMode.TwoWay)
-                           .UpdateTargetTrigger ("SelectedColorChanged");
+            clientBinding = this.SetBinding (() => ViewModel.ClientName, () => SelectClientBit.TextField.Text);
+            nameBinding = this.SetBinding (() => ViewModel.ProjectName, () => ProjectBit.TextField.Text, BindingMode.TwoWay);
+            colorBinding = this.SetBinding (() => ViewModel.ProjectColor, () => ColorPicker.Adapter.SelectedColor, BindingMode.TwoWay).UpdateTargetTrigger ("SelectedColorChanged");
 
             await ViewModel.Init ();
         }
@@ -156,7 +148,7 @@ namespace Toggl.Joey.UI.Fragments
 
         private void SelectClientBitClickedHandler (object sender, EventArgs e)
         {
-            ClientListDialogFragment.NewInstance (timeEntryList[0].WorkspaceId)
+            ClientListDialogFragment.NewInstance (WorkspaceId)
             .SetClientSelectListener (this)
             .Show (FragmentManager, "clients_dialog");
         }
@@ -188,6 +180,7 @@ namespace Toggl.Joey.UI.Fragments
         private void FinishActivity (bool isProjectCreated)
         {
             var resultIntent = new Intent ();
+            resultIntent.PutExtra (BaseActivity.IntentProjectIdArgument, ViewModel.ProjectId.ToString ());
             Activity.SetResult (isProjectCreated ? Result.Ok : Result.Canceled, resultIntent);
             Activity.Finish();
         }

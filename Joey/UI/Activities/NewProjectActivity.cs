@@ -12,15 +12,22 @@ namespace Toggl.Joey.UI.Activities
                Theme = "@style/Theme.Toggl.App")]
     public class NewProjectActivity : BaseActivity
     {
-        public static readonly string ExtraTimeEntryDataListId = "com.toggl.timer.timeEntryDataList_id";
+        public static readonly string WorkspaceIdArgument = "com.toggl.timer.workspace_id";
 
         protected override void OnCreateActivity (Bundle state)
         {
             base.OnCreateActivity (state);
             SetContentView (Resource.Layout.NewProjectActivity);
 
-            SupportFragmentManager.BeginTransaction ()
-            .Add (Resource.Id.NewProjectActivityLayout, NewProjectFragment.NewInstance ())
+            var extras = Intent.Extras;
+            if (extras == null) {
+                Finish ();
+            }
+
+            var workspaceId = extras.GetString (WorkspaceIdArgument);
+            var fragment = ProjectListFragment.NewInstance (workspaceId);
+            FragmentManager.BeginTransaction ()
+            .Add (Resource.Id.NewProjectActivityLayout, NewProjectFragment.NewInstance (workspaceId))
             .Commit ();
         }
     }
