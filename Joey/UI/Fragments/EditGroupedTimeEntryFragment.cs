@@ -21,6 +21,7 @@ using ActionBar = Android.Support.V7.App.ActionBar;
 using Activity = Android.Support.V7.App.AppCompatActivity;
 using Fragment = Android.Support.V4.App.Fragment;
 using MeasureSpec = Android.Views.View.MeasureSpec;
+using Android.App;
 
 namespace Toggl.Joey.UI.Fragments
 {
@@ -154,8 +155,18 @@ namespace Toggl.Joey.UI.Fragments
         private void OnProjectEditTextClick (object sender, EventArgs e)
         {
             var intent = new Intent (Activity, typeof (ProjectListActivity));
-            intent.PutStringArrayListExtra (ProjectListActivity.ExtraTimeEntriesIds, TimeEntryIds);
-            StartActivity (intent);
+            intent.PutExtra (BaseActivity.IntentWorkspaceIdArgument, ViewModel.WorkspaceId.ToString ());
+            StartActivityForResult (intent, 0);
+        }
+
+        public override void OnActivityResult (int requestCode, int resultCode, Intent data)
+        {
+            base.OnActivityResult (requestCode, resultCode, data);
+            if (resultCode == (int)Result.Ok) {
+                var taskId = GetGuidFromIntent (data, BaseActivity.IntentTaskIdArgument);
+                var projectId = GetGuidFromIntent (data, BaseActivity.IntentProjectIdArgument);
+                ViewModel.SetProjectAndTask (projectId, taskId);
+            }
         }
 
         private View GetTimeEntryView (int position, TimeEntryData timeEntryData, View convertView)
@@ -196,6 +207,13 @@ namespace Toggl.Joey.UI.Fragments
         {
             Activity.OnBackPressed ();
             return base.OnOptionsItemSelected (item);
+        }
+
+        private Guid GetGuidFromIntent (Intent data, string id)
+        {
+            Guid result;
+            Guid.TryParse (data.GetStringExtra (id), out result);
+            return result;
         }
     }
 }

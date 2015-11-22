@@ -90,6 +90,36 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         #endregion
 
+        public async Task SetProjectAndTask (Guid projectId, Guid taskId)
+        {
+            // Set project to Model
+            var projectModel = new ProjectModel (projectId);
+            await projectModel.LoadAsync ();
+            model.Project = projectModel;
+            model.Workspace = projectModel.Workspace;
+            model.Task = new TaskModel (taskId);
+
+            // Edit in a straight way the time entries.
+            foreach (var item in timeEntryList) {
+                if (projectId == Guid.Empty) {
+                    item.ProjectId = null;
+                } else {
+                    item.ProjectId = projectId;
+                }
+
+                if (taskId == Guid.Empty) {
+                    item.TaskId = null;
+                } else {
+                    item.TaskId = projectId;
+                }
+
+                item.WorkspaceId = projectModel.Workspace.Id;
+                Model<TimeEntryData>.MarkDirty (item);
+            }
+
+            UpdateView ();
+        }
+
         public async Task SaveModel ()
         {
             var dataStore = ServiceContainer.Resolve<IDataStore> ();
