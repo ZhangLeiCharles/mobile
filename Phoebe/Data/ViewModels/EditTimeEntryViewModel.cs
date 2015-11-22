@@ -18,7 +18,9 @@ namespace Toggl.Phoebe.Data.ViewModels
     [ImplementPropertyChanged]
     public class EditTimeEntryViewModel : ViewModelBase, IVModel<TimeEntryModel>
     {
-        private TimeEntryTagCollectionView tagsView;
+        internal static readonly string DefaultTag = "mobile";
+
+        private List<TagData> tagList;
         private TimeEntryModel model;
         private Guid timeEntryId;
         private Timer durationTimer;
@@ -35,12 +37,20 @@ namespace Toggl.Phoebe.Data.ViewModels
             durationTimer = new Timer ();
             durationTimer.Elapsed += DurationTimerCallback;
 
-            tagsView = new TimeEntryTagCollectionView (timeEntryId);
+            var tagsView = new TimeEntryTagCollectionView (timeEntryId);
             await tagsView.ReloadAsync ();
+            tagList = tagsView.Data.ToList ();
 
             model = new TimeEntryModel (timeEntryId);
             model.PropertyChanged += OnPropertyChange;
             await model.LoadAsync ();
+
+            // If the entry is new, setup it a bit.
+            if (model.State == TimeEntryState.New) {
+                model.StartTime = Time.UtcNow.AddMinutes (-5);
+                model.StopTime = Time.UtcNow;
+                tagList = await GetDefaultTagList (model.Workspace.Id);
+            }
 
             UpdateView ();
             IsLoading = false;
@@ -85,6 +95,17 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         #endregion
 
+        public async Task SetProjectAndTask (Guid projectId, Guid taskId)
+        {
+            var projectModel = new ProjectModel (projectId);
+            await projectModel.LoadAsync ();
+
+            model.Project = projectModel;
+            model.Workspace = new WorkspaceModel (projectModel.Workspace);
+            model.Task = new TaskModel (taskId);
+            UpdateView ();
+        }
+
         public void ChangeTimeEntryDuration (TimeSpan newDuration)
         {
             model.SetDuration (newDuration);
@@ -103,62 +124,16 @@ namespace Toggl.Phoebe.Data.ViewModels
             ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Change Stop Time";
         }
 
-        public async Task ChangeTagList (List<TagData> tagList)
+        public void ChangeTagList (List<TagData> newTagList)
         {
-            // Create tag list.
-            var dataStore = ServiceContainer.Resolve<IDataStore> ();
-            var existingTagRelations = new List<TimeEntryTagData> ();
-
-            var tags = await dataStore.Table<TimeEntryTagData> ()
-                       .QueryAsync (r => r.TimeEntryId == model.Id && r.DeletedAt == null);
-            existingTagRelations.AddRange (tags);
-
-            // Delete unused tag relations:
-            var deleteTasks = existingTagRelations
-                              .Where (oldTagRelation => tagList.All (newTag => newTag.Id != oldTagRelation.TagId))
-                              .Select (tagRelation => new TimeEntryTagModel (tagRelation).DeleteAsync ())
-                              .ToList();
-
-            // Create new tag relations:
-            var createTasks = tagList
-                              .Where (newTag => tagsView.Data.All (oldTag => oldTag.Id != newTag.Id))
-            .Select (data => new TimeEntryTagModel { TimeEntry = model, Tag = new TagModel (data)} .SaveAsync ())
-            .ToList();
-
-            await Task.WhenAll (deleteTasks.Concat (createTasks));
-
-            if (deleteTasks.Any<Task> () || createTasks.Any<Task> ()) {
-                model.Touch (); // why it needs to be called?
-                await model.SaveAsync ();
-            }
-
-            // Update view!
-            await tagsView.ReloadAsync ();
-            RaisePropertyChanged (() => TagNames);
+            tagList = new List<TagData> (newTagList);
+            UpdateView ();
         }
 
-        public async Task AddTag (TagData tagData)
+        public void AddTag (TagData tagData)
         {
-            // Check if the relation already exists before adding it
-            var relations = await ServiceContainer.Resolve<IDataStore>().Table<TimeEntryTagData> ()
-                            .CountAsync (r => r.TimeEntryId == model.Id && r.TagId == tagData.Id && r.DeletedAt == null);
-            if (relations > 0) {
-                return;
-            }
-
-            // Add Tag relation.
-            var relationModel = new TimeEntryTagModel {
-                TimeEntry = model,
-                Tag = new TagModel (tagData),
-            };
-            await relationModel.SaveAsync ();
-            model.Touch ();
-            await model.SaveAsync ();
-
-
-            // Update view!
-            await tagsView.ReloadAsync ();
-            RaisePropertyChanged (() => TagNames);
+            tagList.Add (tagData);
+            UpdateView ();
         }
 
         public async Task SaveModel ()
@@ -169,6 +144,18 @@ namespace Toggl.Phoebe.Data.ViewModels
 
             model.IsBillable = IsBillable;
             model.Description = Description;
+
+            await SaveTagList (tagList);
+            await model.SaveAsync ();
+        }
+
+        public async Task SaveModelManual ()
+        {
+            model.IsBillable = IsBillable;
+            model.Description = Description;
+            model.State = TimeEntryState.Finished;
+
+            await SaveTagList (tagList);
             await model.SaveAsync ();
         }
 
@@ -186,15 +173,14 @@ namespace Toggl.Phoebe.Data.ViewModels
         {
             StartDate = model.StartTime == DateTime.MinValue ? DateTime.UtcNow.AddMinutes (-1).ToLocalTime () : model.StartTime.ToLocalTime ();
             StopDate = model.StopTime.HasValue ? model.StopTime.Value.ToLocalTime () : DateTime.UtcNow.ToLocalTime ();
-            // TODO: check substring function for long times
-            Duration = TimeSpan.FromSeconds (model.GetDuration ().TotalSeconds).ToString ().Substring (0, 8);
+            Duration = TimeSpan.FromSeconds (model.GetDuration ().TotalSeconds).ToString ().Substring (0, 8); // TODO: check substring function for long times
             Description = model.Description;
             ProjectName = model.Project != null ? model.Project.Name : string.Empty;
-            TagNames = tagsView.TagNames;
             IsBillable = model.IsBillable;
             IsPremium = model.Workspace.IsPremium;
             WorkspaceId = model.Workspace.Id;
             IsManual = model.State == TimeEntryState.New;
+            TagNames = tagList.Select (tag => tag.Name).ToList ();
 
             if (model.Project != null) {
                 if (model.Project.Client != null) {
@@ -220,6 +206,52 @@ namespace Toggl.Phoebe.Data.ViewModels
             ServiceContainer.Resolve<IPlatformUtils> ().DispatchOnUIThread (() => {
                 Duration = TimeSpan.FromSeconds (duration.TotalSeconds).ToString ().Substring (0, 8);
             });
+        }
+
+        private async Task SaveTagList (List<TagData> newTagList)
+        {
+            // Create tag list.
+            var dataStore = ServiceContainer.Resolve<IDataStore> ();
+            var existingTagRelations = new List<TimeEntryTagData> ();
+
+            var tags = await dataStore.Table<TimeEntryTagData> ()
+                       .QueryAsync (r => r.TimeEntryId == model.Id && r.DeletedAt == null);
+            existingTagRelations.AddRange (tags);
+
+            // Delete unused tag relations:
+            var deleteTasks = existingTagRelations
+                              .Where (oldTagRelation => newTagList.All (newTag => newTag.Id != oldTagRelation.TagId))
+                              .Select (tagRelation => new TimeEntryTagModel (tagRelation).DeleteAsync ())
+                              .ToList();
+
+            // Create new tag relations:
+            var createTasks = newTagList
+                              .Where (newTag => existingTagRelations.All (oldTagRelation => oldTagRelation.TagId != newTag.Id))
+            .Select (data => new TimeEntryTagModel { TimeEntry = model, Tag = new TagModel (data)} .SaveAsync ())
+            .ToList();
+
+            await Task.WhenAll (deleteTasks.Concat (createTasks));
+
+            if (deleteTasks.Any<Task> () || createTasks.Any<Task> ()) {
+                model.Touch (); // why it needs to be called?
+                await model.SaveAsync ();
+            }
+        }
+
+        private async Task<List<TagData>> GetDefaultTagList (Guid workspaceId)
+        {
+            var dataStore = ServiceContainer.Resolve<IDataStore> ();
+            var defaultTagList = await dataStore.Table<TagData> ().QueryAsync (r => r.Name == DefaultTag && r.WorkspaceId == workspaceId && r.DeletedAt == null);
+
+            if (defaultTagList.Count == 0) {
+                defaultTagList = new List<TagData> ();
+                var defaultTag = await dataStore.PutAsync (new TagData {
+                    Name = DefaultTag,
+                    WorkspaceId = workspaceId,
+                });
+                defaultTagList.Add (defaultTag);
+            }
+            return defaultTagList;
         }
     }
 }

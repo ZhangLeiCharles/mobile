@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Android.App;
 using Android.Content;
 using Android.OS;
 using Android.Support.V4.App;
@@ -186,8 +187,18 @@ namespace Toggl.Joey.UI.Fragments
         private void OnProjectEditTextClick (object sender, EventArgs e)
         {
             var intent = new Intent (Activity, typeof (ProjectListActivity));
-            intent.PutStringArrayListExtra (ProjectListActivity.ExtraTimeEntriesIds, new List<string> {TimeEntryId.ToString ()});
-            StartActivity (intent);
+            intent.PutExtra (BaseActivity.IntentWorkspaceIdArgument, ViewModel.WorkspaceId.ToString ());
+            StartActivityForResult (intent, 0);
+        }
+
+        public override void OnActivityResult (int requestCode, int resultCode, Intent data)
+        {
+            base.OnActivityResult (requestCode, resultCode, data);
+            if (resultCode == (int)Result.Ok) {
+                var taskId = GetGuidFromIntent (data, BaseActivity.IntentTaskIdArgument);
+                var projectId = GetGuidFromIntent (data, BaseActivity.IntentProjectIdArgument);
+                ViewModel.SetProjectAndTask (projectId, taskId);
+            }
         }
 
         private void OnTagsEditTextClick (object sender, EventArgs e)
@@ -230,12 +241,19 @@ namespace Toggl.Joey.UI.Fragments
 
         public override bool OnOptionsItemSelected (IMenuItem item)
         {
-            if (item == saveMenuBinding) {
-                Console.WriteLine ("Save entry!");
+            if (item == SaveMenuItem) {
+                Task.Run (async () => await ViewModel.SaveModelManual ());
             }
 
             Activity.OnBackPressed ();
             return base.OnOptionsItemSelected (item);
+        }
+
+        private Guid GetGuidFromIntent (Intent data, string id)
+        {
+            Guid result;
+            Guid.TryParse (data.GetStringExtra (id), out result);
+            return result;
         }
     }
 }
