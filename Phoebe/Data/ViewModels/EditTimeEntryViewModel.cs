@@ -16,7 +16,7 @@ using XPlatUtils;
 namespace Toggl.Phoebe.Data.ViewModels
 {
     [ImplementPropertyChanged]
-    public class EditTimeEntryViewModel : ViewModelBase, IVModel<TimeEntryModel>
+    public class EditTimeEntryViewModel : ViewModelBase, IViewModel<TimeEntryModel>
     {
         internal static readonly string DefaultTag = "mobile";
 

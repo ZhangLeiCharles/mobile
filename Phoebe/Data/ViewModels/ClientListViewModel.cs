@@ -9,7 +9,7 @@ using XPlatUtils;
 
 namespace Toggl.Phoebe.Data.ViewModels
 {
-    public class ClientListViewModel : IVModel<ClientModel>
+    public class ClientListViewModel : IViewModel<ClientModel>
     {
         private ClientModel model;
         private Guid workspaceId;

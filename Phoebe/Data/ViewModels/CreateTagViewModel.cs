@@ -8,7 +8,7 @@ using XPlatUtils;
 
 namespace Toggl.Phoebe.Data.ViewModels
 {
-    public class CreateTagViewModel : IVModel<TagModel>
+    public class CreateTagViewModel : IViewModel<TagModel>
     {
         private Guid workspaceId;
         private WorkspaceModel workspace;

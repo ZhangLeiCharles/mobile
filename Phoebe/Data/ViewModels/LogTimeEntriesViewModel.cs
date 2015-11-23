@@ -14,7 +14,7 @@ using XPlatUtils;
 namespace Toggl.Phoebe.Data.ViewModels
 {
     [ImplementPropertyChanged]
-    public class LogTimeEntriesViewModel : ViewModelBase, IVModel<TimeEntryModel>
+    public class LogTimeEntriesViewModel : ViewModelBase, IViewModel<TimeEntryModel>
     {
         private Subscription<SettingChangedMessage> subscriptionSettingChanged;
         private ActiveTimeEntryManager timeEntryManager;

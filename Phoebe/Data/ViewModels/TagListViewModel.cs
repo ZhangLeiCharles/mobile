@@ -10,7 +10,7 @@ using XPlatUtils;
 
 namespace Toggl.Phoebe.Data.ViewModels
 {
-    public class TagListViewModel : IVModel<WorkspaceModel>
+    public class TagListViewModel : IViewModel<WorkspaceModel>
     {
         // This viewMode is apparently simple but
         // it needs the code related with the update of

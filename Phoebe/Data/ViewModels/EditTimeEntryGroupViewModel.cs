@@ -16,7 +16,7 @@ using XPlatUtils;
 namespace Toggl.Phoebe.Data.ViewModels
 {
     [ImplementPropertyChanged]
-    public class EditTimeEntryGroupViewModel : ViewModelBase, IVModel<TimeEntryModel>
+    public class EditTimeEntryGroupViewModel : ViewModelBase, IViewModel<TimeEntryModel>
     {
         private TimeEntryModel model;
         private Timer durationTimer;

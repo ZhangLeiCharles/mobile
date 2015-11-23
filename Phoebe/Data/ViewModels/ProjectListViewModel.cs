@@ -10,7 +10,7 @@ using XPlatUtils;
 namespace Toggl.Phoebe.Data.ViewModels
 {
     [ImplementPropertyChanged]
-    public class ProjectListViewModel : IVModel<ITimeEntryModel>
+    public class ProjectListViewModel : IViewModel<ITimeEntryModel>
     {
         public ProjectListViewModel (Guid workspaceId)
         {
