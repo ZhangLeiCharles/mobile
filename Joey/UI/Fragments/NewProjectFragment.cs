@@ -164,7 +164,7 @@ namespace Toggl.Joey.UI.Fragments
 
         public override void OnCreateOptionsMenu (IMenu menu, MenuInflater inflater)
         {
-            menu.Add (Resource.String.NewProjectSaveButtonText).SetShowAsAction (ShowAsAction.Always);
+            inflater.Inflate (Resource.Menu.SaveItemMenu, menu);
         }
 
         public override bool OnOptionsItemSelected (IMenuItem item)
