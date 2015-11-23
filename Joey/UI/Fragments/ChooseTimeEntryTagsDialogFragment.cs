@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Android.App;
 using Android.Content;
 using Android.OS;
@@ -37,10 +38,16 @@ namespace Toggl.Joey.UI.Fragments
             }
         }
 
-        private IList<string> ExistingTags
+        private List<Guid> ExistingTagIds
         {
             get {
-                return Arguments.GetStringArrayList (SelectedTagNamesArgument);
+                //var tagIds = new List <Guid> ();
+                var strList = Arguments.GetStringArrayList (SelectedTagNamesArgument);
+                return strList.Select (idstr => {
+                    Guid guid;
+                    Guid.TryParse (idstr, out guid);
+                    return guid;
+                }).ToList ();
             }
         }
 
@@ -52,13 +59,14 @@ namespace Toggl.Joey.UI.Fragments
         {
         }
 
-        public static ChooseTimeEntryTagsDialogFragment NewInstance (Guid workspaceId, List<string> tagNames)
+        public static ChooseTimeEntryTagsDialogFragment NewInstance (Guid workspaceId, List<Guid> tagIds)
         {
             var fragment = new ChooseTimeEntryTagsDialogFragment ();
 
             var args = new Bundle ();
             args.PutString (WorkspaceIdArgument, workspaceId.ToString ());
-            args.PutStringArrayList (SelectedTagNamesArgument, tagNames);
+            var tagIdsStrings = tagIds.Select (t => t.ToString ()).ToList ();
+            args.PutStringArrayList (SelectedTagNamesArgument, tagIdsStrings);
             fragment.Arguments = args;
 
             return fragment;
@@ -68,7 +76,7 @@ namespace Toggl.Joey.UI.Fragments
         {
             base.OnCreate (savedInstanceState);
 
-            viewModel = new TagListViewModel (WorkspaceId);
+            viewModel = new TagListViewModel (WorkspaceId, ExistingTagIds);
             await viewModel.Init ();
             SetPreviousSelectedTags ();
         }
@@ -157,11 +165,11 @@ namespace Toggl.Joey.UI.Fragments
                 return;
             }
 
-            var list = ExistingTags;
+            var list = ExistingTagIds;
             listView.ClearChoices ();
 
             for (int i = 0; i < viewModel.TagCollection.Count; i++) {
-                if (list.Contains (viewModel.TagCollection [i].Name)) {
+                if (list.Contains (viewModel.TagCollection [i].Id)) {
                     listView.SetItemChecked (i, true);
                 }
             }

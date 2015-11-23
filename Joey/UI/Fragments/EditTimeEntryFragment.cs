@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Android.App;
 using Android.Content;
@@ -31,7 +32,7 @@ namespace Toggl.Joey.UI.Fragments
         // to avoid weak references to be removed
         private Binding<string, string> durationBinding, projectBinding, clientBinding, descriptionBinding;
         private Binding<DateTime, string> startTimeBinding, stopTimeBinding;
-        private Binding<List<string>, List<string>> tagBinding;
+        private Binding<List<TagData>, List<string>> tagBinding;
         private Binding<bool, ViewStates> isPremiumBinding;
         private Binding<bool, bool> isBillableBinding, billableBinding, isRunningBinding, saveMenuBinding;
 
@@ -145,13 +146,17 @@ namespace Toggl.Joey.UI.Fragments
             await ViewModel.Init ();
 
             durationBinding = this.SetBinding (() => ViewModel.Duration, () => DurationTextView.Text);
-            startTimeBinding = this.SetBinding (() => ViewModel.StartDate, () => StartTimeEditText.Text).ConvertSourceToTarget (dateTime => dateTime.ToDeviceTimeString ());
-            stopTimeBinding = this.SetBinding (() => ViewModel.StopDate, () => StopTimeEditText.Text).ConvertSourceToTarget (dateTime => dateTime.ToDeviceTimeString ());
+            startTimeBinding = this.SetBinding (() => ViewModel.StartDate, () => StartTimeEditText.Text)
+                               .ConvertSourceToTarget (dateTime => dateTime.ToDeviceTimeString ());
+            stopTimeBinding = this.SetBinding (() => ViewModel.StopDate, () => StopTimeEditText.Text)
+                              .ConvertSourceToTarget (dateTime => dateTime.ToDeviceTimeString ());
             projectBinding = this.SetBinding (() => ViewModel.ProjectName, () => ProjectField.TextField.Text);
             clientBinding = this.SetBinding (() => ViewModel.ClientName, () => ProjectField.AssistViewTitle);
-            tagBinding = this.SetBinding (() => ViewModel.TagNames, () => TagsField.TagNames);
+            tagBinding = this.SetBinding (() => ViewModel.TagList, () => TagsField.TagNames)
+                         .ConvertSourceToTarget (tagList => tagList.Select (tag => tag.Name).ToList ());
             descriptionBinding = this.SetBinding (() => ViewModel.Description, () => DescriptionField.TextField.Text, BindingMode.TwoWay);
-            isPremiumBinding = this.SetBinding (() => ViewModel.IsPremium, () => BillableCheckBox.Visibility).ConvertSourceToTarget (isVisible => isVisible ? ViewStates.Visible : ViewStates.Gone);
+            isPremiumBinding = this.SetBinding (() => ViewModel.IsPremium, () => BillableCheckBox.Visibility)
+                               .ConvertSourceToTarget (isVisible => isVisible ? ViewStates.Visible : ViewStates.Gone);
             isRunningBinding = this.SetBinding (() => ViewModel.IsRunning).WhenSourceChanges (() => {
                 StopTimeEditText.Visibility = ViewModel.IsRunning ? ViewStates.Gone : ViewStates.Visible;
                 stopTimeEditLabel.Visibility = ViewModel.IsRunning ? ViewStates.Gone : ViewStates.Visible;
@@ -203,7 +208,7 @@ namespace Toggl.Joey.UI.Fragments
 
         private void OnTagsEditTextClick (object sender, EventArgs e)
         {
-            ChooseTimeEntryTagsDialogFragment.NewInstance (ViewModel.WorkspaceId, ViewModel.TagNames)
+            ChooseTimeEntryTagsDialogFragment.NewInstance (ViewModel.WorkspaceId, ViewModel.TagList.Select (tag => tag.Id).ToList ())
             .SetOnModifyTagListHandler (this)
             .Show (FragmentManager, "tags_dialog");
         }

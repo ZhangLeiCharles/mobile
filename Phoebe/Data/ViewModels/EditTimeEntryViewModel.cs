@@ -20,7 +20,6 @@ namespace Toggl.Phoebe.Data.ViewModels
     {
         internal static readonly string DefaultTag = "mobile";
 
-        private List<TagData> tagList;
         private TimeEntryModel model;
         private Guid timeEntryId;
         private Timer durationTimer;
@@ -39,7 +38,7 @@ namespace Toggl.Phoebe.Data.ViewModels
 
             var tagsView = new TimeEntryTagCollectionView (timeEntryId);
             await tagsView.ReloadAsync ();
-            tagList = tagsView.Data.ToList ();
+            TagList = tagsView.Data.ToList ();
 
             model = new TimeEntryModel (timeEntryId);
             model.PropertyChanged += OnPropertyChange;
@@ -49,7 +48,7 @@ namespace Toggl.Phoebe.Data.ViewModels
             if (model.State == TimeEntryState.New) {
                 model.StartTime = Time.UtcNow.AddMinutes (-5);
                 model.StopTime = Time.UtcNow;
-                tagList = await GetDefaultTagList (model.Workspace.Id);
+                TagList = await GetDefaultTagList (model.Workspace.Id);
             }
 
             UpdateView ();
@@ -87,7 +86,7 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         public string Description { get; set; }
 
-        public List<string> TagNames { get; set; }
+        public List<TagData> TagList { get; set; }
 
         public bool IsBillable { get; set; }
 
@@ -126,13 +125,13 @@ namespace Toggl.Phoebe.Data.ViewModels
 
         public void ChangeTagList (List<TagData> newTagList)
         {
-            tagList = new List<TagData> (newTagList);
+            TagList = new List<TagData> (newTagList);
             UpdateView ();
         }
 
         public void AddTag (TagData tagData)
         {
-            tagList.Add (tagData);
+            TagList.Add (tagData);
             UpdateView ();
         }
 
@@ -145,7 +144,7 @@ namespace Toggl.Phoebe.Data.ViewModels
             model.IsBillable = IsBillable;
             model.Description = Description;
 
-            await SaveTagList (tagList);
+            await SaveTagRelationships (TagList);
             await model.SaveAsync ();
         }
 
@@ -155,7 +154,7 @@ namespace Toggl.Phoebe.Data.ViewModels
             model.Description = Description;
             model.State = TimeEntryState.Finished;
 
-            await SaveTagList (tagList);
+            await SaveTagRelationships (TagList);
             await model.SaveAsync ();
         }
 
@@ -180,7 +179,6 @@ namespace Toggl.Phoebe.Data.ViewModels
             IsPremium = model.Workspace.IsPremium;
             WorkspaceId = model.Workspace.Id;
             IsManual = model.State == TimeEntryState.New;
-            TagNames = tagList.Select (tag => tag.Name).ToList ();
 
             if (model.Project != null) {
                 if (model.Project.Client != null) {
@@ -208,7 +206,7 @@ namespace Toggl.Phoebe.Data.ViewModels
             });
         }
 
-        private async Task SaveTagList (List<TagData> newTagList)
+        private async Task SaveTagRelationships (List<TagData> newTagList)
         {
             // Create tag list.
             var dataStore = ServiceContainer.Resolve<IDataStore> ();
@@ -234,7 +232,6 @@ namespace Toggl.Phoebe.Data.ViewModels
 
             if (deleteTasks.Any<Task> () || createTasks.Any<Task> ()) {
                 model.Touch (); // why it needs to be called?
-                await model.SaveAsync ();
             }
         }
 

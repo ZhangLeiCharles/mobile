@@ -18,8 +18,6 @@ using Toggl.Phoebe;
 using Toggl.Phoebe.Data.Utils;
 using Toggl.Phoebe.Data.ViewModels;
 using Toggl.Phoebe.Data.Views;
-using Toggl.Phoebe.Net;
-using XPlatUtils;
 
 namespace Toggl.Joey.UI.Fragments
 {

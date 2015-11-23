@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Toggl.Phoebe.Analytics;
 using Toggl.Phoebe.Data.DataObjects;
@@ -17,9 +18,11 @@ namespace Toggl.Phoebe.Data.ViewModels
         // everytime a tag is changed/created/deleted
 
         private Guid workspaceId;
+        private List<Guid> previousSelectedIds;
 
-        public TagListViewModel (Guid workspaceId)
+        public TagListViewModel (Guid workspaceId, List<Guid> previousSelectedIds)
         {
+            this.previousSelectedIds = previousSelectedIds;
             this.workspaceId = workspaceId;
             ServiceContainer.Resolve<ITracker> ().CurrentScreen = "Select Tags";
         }
@@ -46,20 +49,32 @@ namespace Toggl.Phoebe.Data.ViewModels
         private async Task LoadTagsAsync ()
         {
             TagCollection = new ObservableRangeCollection<TagData> ();
-
             var store = ServiceContainer.Resolve<IDataStore> ();
-            var tags = await store.Table<TagData> ()
-                       .QueryAsync (r => r.DeletedAt == null
-                                    && r.WorkspaceId == workspaceId);
 
-            tags.Sort ((a, b) => {
+            var workspaceTags = await store.Table<TagData> ()
+                                .QueryAsync (r => r.DeletedAt == null
+                                             && r.WorkspaceId == workspaceId);
+            var currentSelectedTags = await store.Table<TagData> ()
+                                      .QueryAsync (r => r.DeletedAt == null && previousSelectedIds.Contains (r.Id));
+
+            // TODO:
+            // There is an strange case, tags are created again across
+            // workspaces. To avoid display similar names
+            // on the list the diff and corrupt data, the filter is done by
+            // names. The bad point is that tags will appears unselected.
+            var diff = currentSelectedTags.Where (sTag => workspaceTags.All (wTag => sTag.Name != wTag.Name));
+
+            workspaceTags.AddRange (diff);
+
+            workspaceTags.Sort ((a, b) => {
                 var aName = a != null ? (a.Name ?? String.Empty) : String.Empty;
                 var bName = b != null ? (b.Name ?? String.Empty) : String.Empty;
                 return String.Compare (aName, bName, StringComparison.Ordinal);
             });
 
-            TagCollection.AddRange (tags);
+            TagCollection.AddRange (workspaceTags);
         }
+
     }
 }
 
